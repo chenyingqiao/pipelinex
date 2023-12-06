@@ -1,6 +1,10 @@
 package pipelinex
 
-import "github.com/thoas/go-funk"
+import (
+	"context"
+
+	"github.com/thoas/go-funk"
+)
 
 type DGAGraph struct {
 	first    Node
@@ -57,4 +61,62 @@ func (dga *DGAGraph) BFS() []string {
 func (dga *DGAGraph) CycelCheck() bool {
 	dga.BFS()
 	return dga.hasCycle
+}
+
+type PipelineImpl struct {
+	id        string
+	graph     Graph
+	status    string
+	metadata  Metadata
+	listening ListeningFn
+	doneChan  <-chan struct{}
+}
+
+func NewPipeline(ctx context.Context) Pipeline {
+	return &PipelineImpl{}
+}
+
+// ID 流水线的id
+func (p *PipelineImpl) ID() string {
+	return ""
+}
+
+// GetGraph 返回图结构
+func (p *PipelineImpl) GetGraph() Graph {
+	return p.graph
+}
+
+// SetGraph 设置图结构
+func (p *PipelineImpl) SetGraph(graph Graph) {}
+
+// Status 返回流水线的整体状态
+func (p *PipelineImpl) Status() string {
+	return ""
+}
+
+// Metadata 返回流水线执行的源数据
+func (p *PipelineImpl) Metadata() Metadata {
+	return Metadata{}
+}
+
+// Listening 流水线执行事件监听设置
+func (p *PipelineImpl) Listening(fn ListeningFn) {
+
+}
+
+// Done流水线是否执行完成
+func (p *PipelineImpl) Done() <-chan struct{} {
+	return p.doneChan
+}
+
+func (p *PipelineImpl) Run(ctx context.Context) error {
+	return nil
+}
+
+func (p *PipelineImpl) Notify() {
+
+}
+
+func (p *PipelineImpl) Cancel() {
+
 }

@@ -1,7 +1,5 @@
 package pipelinex
 
-type Graph map[string][]string
-
 type Node interface {
 	//ID 获取节点唯一id
 	ID() string

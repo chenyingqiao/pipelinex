@@ -1,0 +1,23 @@
+Param:
+  K: 2323
+
+Graph:
+  Merge: Build
+  Build: Deploy
+  AutoTest: Deploy
+
+Nodes:
+  Merge:
+    SourceBranch: test
+    TargetBranch: release
+  AutoTest:
+    Dir: test
+  Build:
+    ImageUrl: xxx.xxx.xx
+    Dockerfile: Dockerfile
+    Platform: linux/arm64,linux/amd64
+  Deploy:
+    KubeConfig: fff
+
+Files:
+  
