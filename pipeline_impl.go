@@ -100,7 +100,7 @@ func (p *PipelineImpl) Metadata() Metadata {
 }
 
 // Listening 流水线执行事件监听设置
-func (p *PipelineImpl) Listening(fn ListeningFn) {
+func (p *PipelineImpl) Listening(fn Listener) {
 
 }
 

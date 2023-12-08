@@ -8,16 +8,13 @@ Graph:
 
 Nodes:
   Merge:
-    SourceBranch: test
-    TargetBranch: release
-  AutoTest:
-    Dir: test
-  Build:
-    ImageUrl: xxx.xxx.xx
-    Dockerfile: Dockerfile
-    Platform: linux/arm64,linux/amd64
-  Deploy:
-    KubeConfig: fff
+    Image: xxxxxx
+    Config: | # 通过拼接命令，在agent这边启动一个http服务然pod自己过来拉文件保存到对应的目录，可以通过curl -O 实现
+      SourceBranch: test
+      TargetBranch: release
+    Cmd: tar -zcvf .
 
 Files:
-  
+  - path: xxx
+    content: |
+      asdfasdfasdfasdf
