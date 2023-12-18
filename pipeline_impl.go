@@ -3,6 +3,7 @@ package pipelinex
 import (
 	"context"
 
+	"github.com/google/uuid"
 	"github.com/thoas/go-funk"
 )
 
@@ -78,7 +79,7 @@ func NewPipeline(ctx context.Context) Pipeline {
 
 // ID 流水线的id
 func (p *PipelineImpl) ID() string {
-	return ""
+	return uuid.NewString()
 }
 
 // GetGraph 返回图结构
@@ -87,7 +88,9 @@ func (p *PipelineImpl) GetGraph() Graph {
 }
 
 // SetGraph 设置图结构
-func (p *PipelineImpl) SetGraph(graph Graph) {}
+func (p *PipelineImpl) SetGraph(graph Graph) {
+	p.graph = graph
+}
 
 // Status 返回流水线的整体状态
 func (p *PipelineImpl) Status() string {
