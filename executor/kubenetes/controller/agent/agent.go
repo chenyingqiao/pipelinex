@@ -63,7 +63,7 @@ func NewController(kubeclientset kubernetes.Interface, agentclientset clientset.
 		recorder:       recorder,
 	}
 	glog.Info("Setting up event handlers")
-	// Set up an event handler for when Bar resources change
+	// Set up an event handler for when Agent resources change
 	agentInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: ctr.enqueueBar,
 		UpdateFunc: func(old, new interface{}) {
