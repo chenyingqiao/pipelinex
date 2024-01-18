@@ -2,6 +2,7 @@ package agent
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/chenyingqiao/pipelinex/executor/kubenetes/controller"
 	clientset "github.com/chenyingqiao/pipelinex/executor/kubenetes/generated/clientset/versioned"
@@ -12,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
 	kuberInformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	kubeScheme "k8s.io/client-go/kubernetes/scheme"
@@ -34,6 +36,7 @@ const (
 	// is synced successfully
 	MessageResourceSynced = "Bar synced successfully"
 )
+
 // 这个是Agent工作负载编排的控制器
 // 它的功能：
 // - 创建流水线工作负载的Pod, 并保证工作负载的pod创建成功
@@ -89,6 +92,18 @@ func NewController(kubeclientset kubernetes.Interface, agentclientset clientset.
 
 // 执行控制器功能
 func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
+	glog.Info("开始运行AgentController")
+	glog.Info("等待informer同步信息")
+	if ok := cache.WaitForCacheSync(stopCh, c.agentSynced); !ok {
+		return fmt.Errorf("等待informer同步失败")
+	}
+
+	// 开始worker
+	go wait.Until(c.runWorker, time.Second, stopCh)
+	go wait.Until(c.runWorker, time.Second, stopCh)
+	glog.Info("开始工作业务")
+	<-stopCh
+	glog.Info("结束工作业务")
 
 	return nil
 }
@@ -107,11 +122,20 @@ func (c *Controller) runWorker() {
 			runtime.HandleError(fmt.Errorf("工作队列中预期的字符串但得到了 %#v", obj))
 			return
 		}
+
+		key := obj.(string)
+		if err := c.syncHandler(key); err != nil {
+			runtime.HandleError(fmt.Errorf("同步数据失败 %#v %s", obj, err.Error()))
+			return
+		}
+		c.workqueue.Forget(obj)
+		glog.Infof("Successfully synced '%s'", key)
+		return
 	}
 }
 
 // processing 处理对应的数据
-func (c *Controller) processing(key string) error {
+func (c *Controller) syncHandler(key string) error {
 	// Convert the namespace/name string into a distinct namespace and name
 	namespace, name, err := cache.SplitMetaNamespaceKey(key)
 	if err != nil {
