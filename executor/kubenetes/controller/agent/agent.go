@@ -153,6 +153,7 @@ func (c *Controller) syncHandler(key string) error {
 	}
 
 	// 处理agent对应的业务逻辑
+	// 1. 如果agent的参数变化了需要同步的对pod进行操作
 
 	c.recorder.Event(agent, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
