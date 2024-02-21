@@ -99,8 +99,9 @@ func (c *Controller) Run(threadiness int, stopCh <-chan struct{}) error {
 	}
 
 	// 开始worker
-	go wait.Until(c.runWorker, time.Second, stopCh)
-	go wait.Until(c.runWorker, time.Second, stopCh)
+	for i := 0; i < threadiness; i++ {
+		go wait.Until(c.runWorker, time.Second, stopCh)
+	}
 	glog.Info("开始工作业务")
 	<-stopCh
 	glog.Info("结束工作业务")
@@ -154,7 +155,7 @@ func (c *Controller) syncHandler(key string) error {
 
 	// 处理agent对应的业务逻辑
 	// 1. 如果agent的参数变化了需要同步的对pod进行操作
-
+	fmt.Println(agent.Name)
 	c.recorder.Event(agent, corev1.EventTypeNormal, SuccessSynced, MessageResourceSynced)
 	return nil
 }

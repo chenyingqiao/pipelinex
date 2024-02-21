@@ -10,5 +10,3 @@ type Node interface {
 	//Get 获取节点属性数据
 	Get(key string) string
 }
-
-
