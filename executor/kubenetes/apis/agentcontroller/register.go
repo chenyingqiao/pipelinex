@@ -18,5 +18,5 @@ package agentcontroller
 
 // GroupName is the group name used in this package
 const (
-	GroupName = "agentcontroller.lerko.io"
+	GroupName = "pipelinex.com"
 )

@@ -40,7 +40,6 @@ type AgentsGetter interface {
 type AgentInterface interface {
 	Create(ctx context.Context, agent *v1alpha1.Agent, opts v1.CreateOptions) (*v1alpha1.Agent, error)
 	Update(ctx context.Context, agent *v1alpha1.Agent, opts v1.UpdateOptions) (*v1alpha1.Agent, error)
-	UpdateStatus(ctx context.Context, agent *v1alpha1.Agent, opts v1.UpdateOptions) (*v1alpha1.Agent, error)
 	Delete(ctx context.Context, name string, opts v1.DeleteOptions) error
 	DeleteCollection(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions) error
 	Get(ctx context.Context, name string, opts v1.GetOptions) (*v1alpha1.Agent, error)
@@ -129,22 +128,6 @@ func (c *agents) Update(ctx context.Context, agent *v1alpha1.Agent, opts v1.Upda
 		Namespace(c.ns).
 		Resource("agents").
 		Name(agent.Name).
-		VersionedParams(&opts, scheme.ParameterCodec).
-		Body(agent).
-		Do(ctx).
-		Into(result)
-	return
-}
-
-// UpdateStatus was generated because the type contains a Status member.
-// Add a +genclient:noStatus comment above the type to avoid generating UpdateStatus().
-func (c *agents) UpdateStatus(ctx context.Context, agent *v1alpha1.Agent, opts v1.UpdateOptions) (result *v1alpha1.Agent, err error) {
-	result = &v1alpha1.Agent{}
-	err = c.client.Put().
-		Namespace(c.ns).
-		Resource("agents").
-		Name(agent.Name).
-		SubResource("status").
 		VersionedParams(&opts, scheme.ParameterCodec).
 		Body(agent).
 		Do(ctx).
