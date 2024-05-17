@@ -1,10 +1,12 @@
 Param:
   K: 2323
+  C:
+    kk: 1
 
-Graph:
-  Merge->: Build
-  Build->: Deploy
-  AutoTest->: Deploy
+Graph: |
+  Merge->Build
+  Build->Deploy
+  AutoTest->Deploy
 
 Nodes:
   Merge:
@@ -14,8 +16,3 @@ Nodes:
       SourceBranch: test
       TargetBranch: release
     Cmd: tar -zcvf .
-
-Files:
-  - path: xxx
-    content: |
-      asdfasdfasdfasdf

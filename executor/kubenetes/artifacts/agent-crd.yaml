@@ -24,6 +24,8 @@ spec:
               liveTime:
                 type: integer
                 default: 1800
+              podSpec:
+                $ref: "#/definitions/io.k8s.api.core.v1.PodSpec"
             required:
             - liveTime
         required:
