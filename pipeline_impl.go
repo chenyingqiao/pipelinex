@@ -15,8 +15,8 @@ type DGAGraph struct {
 	hasCycle bool
 }
 
-func NewDGAGraph() DGAGraph {
-	return DGAGraph{
+func NewDGAGraph() *DGAGraph {
+	return &DGAGraph{
 		nodes:    map[string]Node{},
 		graph:    map[string][]string{},
 		sequence: []string{},
