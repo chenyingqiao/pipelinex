@@ -15,21 +15,34 @@ type DGAGraph struct {
 	hasCycle bool
 }
 
-func (dga *DGAGraph) Nodes() []Node {
+func NewDGAGraph() DGAGraph {
+	return DGAGraph{
+		nodes:    map[string]Node{},
+		graph:    map[string][]string{},
+		sequence: []string{},
+	}
+}
+
+func (dga *DGAGraph) Nodes() map[string]Node {
 	dga.hasCycle = false
-	return funk.Values(dga.nodes).([]Node)
+	return funk.Map(dga.nodes, func(x Node) (string, Node) {
+		return x.Id(), x
+	}).(map[string]Node)
 }
 
 // AddVertex 添加顶点
 func (dga *DGAGraph) AddVertex(node Node) {
-	dga.nodes[node.ID()] = node
-	dga.graph[node.ID()] = []string{}
+	if dga.first == nil {
+		dga.first = node
+	}
+	dga.nodes[node.Id()] = node
+	dga.graph[node.Id()] = []string{}
 	dga.hasCycle = false
 }
 
 // AddEdge 添加边
-func (dga *DGAGraph) AddEdge(src, dest string) {
-	dga.graph[src] = append(dga.graph[src], dest)
+func (dga *DGAGraph) AddEdge(src, dest Node) {
+	dga.graph[src.Id()] = append(dga.graph[src.Id()], dest.Id())
 }
 
 // BFS 广度有限搜索返回搜索序列
@@ -38,11 +51,11 @@ func (dga *DGAGraph) BFS() []string {
 		return dga.sequence
 	}
 	visited := make(map[string]bool)
-	firstNodeID := dga.first.ID()
+	firstNodeID := dga.first.Id()
 	queue := []string{firstNodeID}
 	sequence := []string{firstNodeID}
 	visited[firstNodeID] = true
-	for len(sequence) > 0 {
+	for len(queue) > 0 {
 		vertexFocuse := queue[0]
 		queue = queue[1:]
 		for _, neighbor := range dga.graph[vertexFocuse] {
@@ -50,6 +63,7 @@ func (dga *DGAGraph) BFS() []string {
 				dga.hasCycle = true
 				continue
 			}
+			visited[neighbor] = true
 			queue = append(queue, neighbor)
 			sequence = append(sequence, neighbor)
 		}
@@ -78,7 +92,7 @@ func NewPipeline(ctx context.Context) Pipeline {
 }
 
 // ID 流水线的id
-func (p *PipelineImpl) ID() string {
+func (p *PipelineImpl) Id() string {
 	return uuid.NewString()
 }
 

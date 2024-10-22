@@ -44,7 +44,7 @@ type Metadata map[string]interface{}
 
 type Pipeline interface {
 	//ID 流水线的id
-	ID() string
+	Id() string
 	//GetGraph 返回图结构
 	GetGraph() Graph
 	//SetGraph 设置图结构

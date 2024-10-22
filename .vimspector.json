@@ -15,7 +15,7 @@
       "variables": {},
       "configuration": {
         "request": "launch",
-        "program": "${workspaceFolder}/test",
+        "program": "${workspaceFolder}",
         "mode": "test",
         "args": ["-test.v", "-test.run", "^${TestIdentifier}"],
         "env": {}
