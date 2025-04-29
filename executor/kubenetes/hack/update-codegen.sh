@@ -18,7 +18,11 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-CODEGEN_PKG="./vendor/k8s.io/code-generator"
+
+SCRIPT_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT_PATH="${PROJECT_ROOT_PATH:-$(cd "${SCRIPT_PATH}/../../.." && pwd)}"
+ROOT_PATH="${ROOT_PATH:-$(cd "${PROJECT_ROOT_PATH}/../../.." && pwd)}"
+CODEGEN_PKG="$PROJECT_ROOT_PATH/vendor/k8s.io/code-generator"
 source "${CODEGEN_PKG}/kube_codegen.sh"
 
 # generate the code with:
@@ -28,13 +32,13 @@ source "${CODEGEN_PKG}/kube_codegen.sh"
 
 kube::codegen::gen_helpers \
     --input-pkg-root github.com/chenyingqiao/pipelinex/executor/kubenetes/apis \
-    --output-base "/Users/lerko/developer-env" \
-    --boilerplate "/Users/lerko/developer-env/github.com/chenyingqiao/pipelinex/executor/kubenetes/hack/boilerplate.go.txt"
+    --output-base "${ROOT_PATH}" \
+    --boilerplate "${ROOT_PATH}/github.com/chenyingqiao/pipelinex/executor/kubenetes/hack/boilerplate.go.txt"
 
 kube::codegen::gen_client \
     --with-watch \
     --input-pkg-root github.com/chenyingqiao/pipelinex/executor/kubenetes/apis \
     --output-pkg-root github.com/chenyingqiao/pipelinex/executor/kubenetes/generated \
-    --output-base "/Users/lerko/developer-env" \
-    --boilerplate "/Users/lerko/developer-env/github.com/chenyingqiao/pipelinex/executor/kubenetes/hack/boilerplate.go.txt"
+    --output-base "${ROOT_PATH}" \
+    --boilerplate "${ROOT_PATH}/github.com/chenyingqiao/pipelinex/executor/kubenetes/hack/boilerplate.go.txt"
 
