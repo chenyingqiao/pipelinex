@@ -41,28 +41,28 @@ func (dga *DGAGraph) Nodes() map[string]Node {
 // AddVertex adds a vertex (node) to the graph.
 // It checks for cycles; if a cycle exists, it returns ErrHasCycle.
 // Otherwise, it returns nil.
-func (dga *DGAGraph) AddVertex(node Node) error {
+func (dga *DGAGraph) AddVertex(node Node) {
 	if dga.first == nil {
 		dga.first = node
 	}
 	dga.nodes[node.Id()] = node
 	dga.graph[node.Id()] = []string{}
+}
+
+// AddEdge adds an edge to the graph.
+func (dga *DGAGraph) AddEdge(src, dest Node) error {
+	if _, ok := dga.nodes[src.Id()]; !ok {
+		return fmt.Errorf("source vertex %s not found", src.Id())
+	}
+	if _, ok := dga.nodes[dest.Id()]; !ok {
+		return fmt.Errorf("dest vertex %s not found", dest.Id())
+	}
+	dga.graph[src.Id()] = append(dga.graph[src.Id()], dest.Id())
 	dga.hasCycle = dga.cycleCheck()
 	if dga.hasCycle {
 		return ErrHasCycle
 	}
 	return nil
-}
-
-// AddEdge adds an edge to the graph.
-func (dga *DGAGraph) AddEdge(src, dest Node) {
-	if _, ok := dga.nodes[src.Id()]; !ok {
-		panic(fmt.Sprintf("source vertex %s not found", src.Id()))
-	}
-	if _, ok := dga.nodes[dest.Id()]; !ok {
-		panic(fmt.Sprintf("dest vertex %s not found", dest.Id()))
-	}
-	dga.graph[src.Id()] = append(dga.graph[src.Id()], dest.Id())
 }
 
 // Traversal performs a breadth-first traversal of the DAG.
@@ -179,8 +179,9 @@ func (p *PipelineImpl) Done() <-chan struct{} {
 
 // Run executes the pipeline.
 func (p *PipelineImpl) Run(ctx context.Context) error {
-	return p.graph.Traversal(ctx, func(node Node) {
+	return p.graph.Traversal(ctx, func(ctx context.Context, node Node) error {
 		fmt.Println(node.Id())
+		return nil
 	})
 }
 

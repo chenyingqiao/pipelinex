@@ -27,7 +27,7 @@ type GraphReader interface {
 	//Nodes
 	Nodes() map[string]Node
 	//Traversal 遍历图结构
-	Traversal(ctx context.Context, fn TraversalFn)
+	Traversal(ctx context.Context, fn TraversalFn) error
 }
 
 // 流水线事件

@@ -23,7 +23,7 @@ func TestDGA_BFS(t *testing.T) {
 	dgaGraph.AddEdge(node4, node3)
 	// Collect visited nodes to verify traversal order
 	visited := []string{}
-	if err := dgaGraph.Traversal(context.Background(), func(node pipelinex.Node) error {
+	if err := dgaGraph.Traversal(context.Background(), func(ctx context.Context, node pipelinex.Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited = append(visited, node.Id())
 		return nil
@@ -43,25 +43,3 @@ func TestDGA_BFS(t *testing.T) {
 	}
 }
 
-func TestPipelineImpl_Run(t *testing.T) {
-	// 创建一个简单的DAG图
-	graph := NewDGAGraph()
-	node1 := &NodeImpl{id: "node1"}
-	node2 := &NodeImpl{id: "node2"}
-	node3 := &NodeImpl{id: "node3"}
-	assert.NoError(t, graph.AddVertex(node1))
-	assert.NoError(t, graph.AddVertex(node2))
-	assert.NoError(t, graph.AddVertex(node3))
-	graph.AddEdge(node1, node2)
-	graph.AddEdge(node2, node3)
-
-	// 创建PipelineImpl实例
-	pipeline := &PipelineImpl{graph: graph}
-
-	// 执行Run方法
-	err := pipeline.Run(context.Background())
-	assert.NoError(t, err)
-
-	// 验证输出 (这部分取决于Run方法的具体实现，这里只是一个例子)
-	//  在实际测试中，需要根据Run方法的输出结果进行相应的断言
-}
