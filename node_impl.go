@@ -11,6 +11,7 @@ type DGANode struct {
 	property map[string]any
 }
 
+// NewDGANode creates a new DGANode with the specified id and state, initializing an empty property map.
 func NewDGANode(id, state string) *DGANode {
 	return &DGANode{
 		id: id,
