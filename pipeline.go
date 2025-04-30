@@ -13,17 +13,23 @@ var (
 	PipelineNodeFinish          Event = "pipeline-node-finish"
 )
 
+type TraversalFn func(node Node)
+
 type Graph interface {
-	//Nodes
-	Nodes() map[string]Node
+	GraphReader
 	//AddVertex 添加顶点
 	AddVertex(node Node)
 	//AddEdge 添加边
-	AddEdge(src, dest string)
+	AddEdge(src, dest Node)
+}
+
+type GraphReader interface {
+	//Nodes
+	Nodes() map[string]Node
 	//CycelCheck
 	CycelCheck() bool
-	//BFS 广度有限搜索
-	BFS() []string
+	//Traversal 遍历图结构
+	Traversal(fn TraversalFn)
 }
 
 // 流水线事件
@@ -40,7 +46,7 @@ type Listener interface {
 
 // PipelineListeningFn 流水线监听函数
 type ListeningFn func(p Pipeline)
-type Metadata map[string]interface{}
+type Metadata map[string]any
 
 type Pipeline interface {
 	//ID 流水线的id
