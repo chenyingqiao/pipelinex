@@ -13,23 +13,21 @@ var (
 	PipelineNodeFinish          Event = "pipeline-node-finish"
 )
 
-type TraversalFn func(node Node)
+type TraversalFn func(ctx context.Context, node Node) error
 
 type Graph interface {
 	GraphReader
 	//AddVertex 添加顶点
 	AddVertex(node Node)
 	//AddEdge 添加边
-	AddEdge(src, dest Node)
+	AddEdge(src, dest Node) error
 }
 
 type GraphReader interface {
 	//Nodes
 	Nodes() map[string]Node
-	//CycelCheck
-	CycelCheck() bool
 	//Traversal 遍历图结构
-	Traversal(fn TraversalFn)
+	Traversal(ctx context.Context, fn TraversalFn)
 }
 
 // 流水线事件
