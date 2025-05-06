@@ -43,3 +43,25 @@ func TestDGA_BFS(t *testing.T) {
 	}
 }
 
+func TestPipeline_Run(t *testing.T) {
+	dgaGraph := pipelinex.NewDGAGraph()
+	node1 := pipelinex.NewDGANode("a", "RUNNING")
+	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
+	node3 := pipelinex.NewDGANode("c", "UNKNOWN	")
+	node4 := pipelinex.NewDGANode("e", "UNKNOWN")
+	dgaGraph.AddVertex(node1)
+	dgaGraph.AddVertex(node2)
+	dgaGraph.AddVertex(node3)
+	dgaGraph.AddVertex(node4)
+	dgaGraph.AddEdge(node1, node2)
+	dgaGraph.AddEdge(node1, node4)
+	dgaGraph.AddEdge(node2, node3)
+	dgaGraph.AddEdge(node4, node3)
+	ctx := context.Background()
+	pipeline := pipelinex.NewPipeline(ctx)
+	pipeline.SetGraph(dgaGraph)
+	err := pipeline.Run(ctx)
+	if err != nil {
+		t.Error(err)
+	}
+}
