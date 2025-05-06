@@ -6,35 +6,32 @@ import (
 )
 
 type DGANode struct {
-	property map[string]interface{}
+	id string
+	state string
+	property map[string]any
 }
 
-func NewDGANode(id, groupId, status string) *DGANode {
+// NewDGANode creates a new DGANode with the specified id and state, initializing an empty property map.
+func NewDGANode(id, state string) *DGANode {
 	return &DGANode{
-		property: map[string]interface{}{
-			"Id":      id,
-			"groupId": groupId,
-			"status":  status,
-		},
+		id: id,
+		state: state,
+		property: map[string]any{},
 	}
 }
 
 func (dgaNode *DGANode) Id() string {
-	return cast.ToString(funk.Get(dgaNode.property, "Id"))
-}
-
-func (dgaNode *DGANode) GroupId() string {
-	return cast.ToString(funk.Get(dgaNode.property, "GroupId"))
+	return  dgaNode.id
 }
 
 func (dgaNode *DGANode) Status() string {
-	return cast.ToString(funk.Get(dgaNode.property, "Status"))
+	return  dgaNode.state
 }
 
 func (dgaNode *DGANode) Get(key string) string {
 	return cast.ToString(funk.Get(dgaNode.property, key))
 }
 
-func (dgaNode *DGANode) Set(key string, value interface{}) {
+func (dgaNode *DGANode) Set(key string, value any) {
 	dgaNode.property[key] = value
 }
