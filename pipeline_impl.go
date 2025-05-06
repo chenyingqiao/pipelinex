@@ -139,12 +139,14 @@ type PipelineImpl struct {
 }
 
 func NewPipeline(ctx context.Context) Pipeline {
-	return &PipelineImpl{}
+	return &PipelineImpl{
+		id: uuid.NewString(),
+	}
 }
 
 // Id returns the ID of the pipeline.
 func (p *PipelineImpl) Id() string {
-	return uuid.NewString()
+	return p.id
 }
 
 // GetGraph returns the graph structure of the pipeline.
@@ -179,10 +181,14 @@ func (p *PipelineImpl) Done() <-chan struct{} {
 
 // Run executes the pipeline.
 func (p *PipelineImpl) Run(ctx context.Context) error {
-	return p.graph.Traversal(ctx, func(ctx context.Context, node Node) error {
+	done := make(chan struct{})
+	p.doneChan = done
+	err := p.graph.Traversal(ctx, func(ctx context.Context, node Node) error {
 		fmt.Println(node.Id())
 		return nil
 	})
+	close(done)
+	return err
 }
 
 func (p *PipelineImpl) Notify() {

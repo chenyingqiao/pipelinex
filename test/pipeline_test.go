@@ -17,10 +17,16 @@ func TestDGA_BFS(t *testing.T) {
 	dgaGraph.AddVertex(node2)
 	dgaGraph.AddVertex(node3)
 	dgaGraph.AddVertex(node4)
-	dgaGraph.AddEdge(node1, node2)
-	dgaGraph.AddEdge(node1, node4)
-	dgaGraph.AddEdge(node2, node3)
-	dgaGraph.AddEdge(node4, node3)
+	for _, e := range [][2]pipelinex.Node{
+		{node1, node2},
+		{node1, node4},
+		{node2, node3},
+		{node4, node3},
+	} {
+		if err := dgaGraph.AddEdge(e[0], e[1]); err != nil {
+			t.Fatalf("AddEdge(%s→%s): %v", e[0].Id(), e[1].Id(), err)
+		}
+	}
 	// Collect visited nodes to verify traversal order
 	visited := []string{}
 	if err := dgaGraph.Traversal(context.Background(), func(ctx context.Context, node pipelinex.Node) error {
@@ -53,13 +59,21 @@ func TestPipeline_Run(t *testing.T) {
 	dgaGraph.AddVertex(node2)
 	dgaGraph.AddVertex(node3)
 	dgaGraph.AddVertex(node4)
-	dgaGraph.AddEdge(node1, node2)
-	dgaGraph.AddEdge(node1, node4)
-	dgaGraph.AddEdge(node2, node3)
-	dgaGraph.AddEdge(node4, node3)
+	for _, e := range [][2]pipelinex.Node{
+		{node1, node2},
+		{node1, node4},
+		{node2, node3},
+		{node4, node3},
+	} {
+		if err := dgaGraph.AddEdge(e[0], e[1]); err != nil {
+			t.Fatalf("AddEdge(%s→%s): %v", e[0].Id(), e[1].Id(), err)
+		}
+	}
 	ctx := context.Background()
 	pipeline := pipelinex.NewPipeline(ctx)
 	pipeline.SetGraph(dgaGraph)
+	// 收集遍历过程中访问的节点
+	visited := []string{}
 	err := pipeline.Run(ctx)
 	if err != nil {
 		t.Error(err)
