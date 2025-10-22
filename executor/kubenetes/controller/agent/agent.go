@@ -64,13 +64,13 @@ func NewController(kubeclientset kubernetes.Interface, agentclientset clientset.
 	agentInformer := agentInformers.Agentcontroller().V1alpha1().Agents()
 	scheme.AddToScheme(kubeScheme.Scheme)
 	glog.V(4).Info("Creating event broadcaster")
-	// 创建事件广播器
+	// create event broadcaster
 	eventBroadcaster := record.NewBroadcaster()
 	eventBroadcaster.StartLogging(glog.Infof)
 	eventBroadcaster.StartRecordingToSink(&typedcorev1.EventSinkImpl{Interface: kubeclientset.CoreV1().Events("")})
 	recorder := eventBroadcaster.NewRecorder(scheme.Scheme, corev1.EventSource{Component: controllerAgentName})
 
-	// 实例化controller
+	// new controller
 	ctr := &Controller{
 		kubeclientset:  kubeclientset,
 		agentclientset: agentclientset,
