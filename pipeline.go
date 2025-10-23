@@ -4,13 +4,13 @@ import "context"
 
 var (
 	//监听事件
-	PipelineInit                Event = "pipeline-init"  // 流水线初始化
-	PipelineStart               Event = "pipeline-start" // 流水线开始执行
-	PipelineFinish              Event = "pipeline-finish"
-	PipelineExecutorPrepare     Event = "pipeline-executor-prepare"      // 流水线执行器开始准备
-	PipelineExecutorPrepareDone Event = "pipeline-executor-prepare-done" // 流水线执行器准备完毕
-	PipelineNodeStart           Event = "pipeline-node-start"
-	PipelineNodeFinish          Event = "pipeline-node-finish"
+	PipelineInit                Event = EventPipelineInit                // 流水线初始化
+	PipelineStart               Event = EventPipelineStart               // 流水线开始执行
+	PipelineFinish              Event = EventPipelineFinish              // 流水线完成
+	PipelineExecutorPrepare     Event = EventPipelineExecutorPrepare     // 流水线执行器开始准备
+	PipelineExecutorPrepareDone Event = EventPipelineExecutorPrepareDone // 流水线执行器准备完毕
+	PipelineNodeStart           Event = EventPipelineNodeStart           // 节点开始
+	PipelineNodeFinish          Event = EventPipelineNodeFinish          // 节点完成
 )
 
 type TraversalFn func(ctx context.Context, node Node) error

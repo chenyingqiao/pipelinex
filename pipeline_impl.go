@@ -248,11 +248,11 @@ func (p *PipelineImpl) Cancel() {
 
 	if p.cancelFunc != nil {
 		p.cancelFunc()
-		p.status = "CANCELLED"
+		p.status = StatusCancelled
 
 		// 通知监听器关于取消事件
 		if p.listener != nil {
-			p.listener.Handle(p, "pipeline-cancelled")
+			p.listener.Handle(p, EventPipelineCancelled)
 		}
 
 		if p.listening != nil {
@@ -281,5 +281,5 @@ func (p *PipelineImpl) notifyEvent(event Event) {
 func (p *PipelineImpl) notifyCurrentStatus(listener Listener) {
 	// 此方法可用于通知详细的状态变化
 	// 目前，它仅用当前流水线调用监听器
-	listener.Handle(p, Event("pipeline-status-update"))
+	listener.Handle(p, EventPipelineStatusUpdate)
 }
