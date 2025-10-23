@@ -10,14 +10,14 @@ type Executor interface {
 	Destruction(ctx context.Context) error
 }
 
-type Adapter interface{
+type Adapter interface {
 	// Config 适配器配置
 	Config(config map[string]interface{}) Adapter
 	// Conn 连接到环境中
 	Conn(ctx context.Context) interface{}
 }
 
-type Bridge interface{
+type Bridge interface {
 	// Transfer 传输需要执行的数据，并且反回执行的结果
-	Transfer(ctx context.Context, in chan<- interface{}, out <-chan interface{}) 
+	Transfer(ctx context.Context, in chan<- interface{}, out <-chan interface{})
 }

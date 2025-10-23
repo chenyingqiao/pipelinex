@@ -73,7 +73,6 @@ func TestPipeline_Run(t *testing.T) {
 	pipeline := pipelinex.NewPipeline(ctx)
 	pipeline.SetGraph(dgaGraph)
 	// 收集遍历过程中访问的节点
-	visited := []string{}
 	err := pipeline.Run(ctx)
 	if err != nil {
 		t.Error(err)

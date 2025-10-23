@@ -3,6 +3,7 @@ package pipelinex
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/thoas/go-funk"
@@ -38,9 +39,9 @@ func (dga *DGAGraph) Nodes() map[string]Node {
 	}).(map[string]Node)
 }
 
-// AddVertex adds a vertex (node) to the graph.
-// It checks for cycles; if a cycle exists, it returns ErrHasCycle.
-// Otherwise, it returns nil.
+// AddVertex 向图中添加顶点（节点）
+// 检查是否存在循环；如果存在循环，则返回 ErrHasCycle
+// 否则返回 nil
 func (dga *DGAGraph) AddVertex(node Node) {
 	if dga.first == nil {
 		dga.first = node
@@ -49,7 +50,7 @@ func (dga *DGAGraph) AddVertex(node Node) {
 	dga.graph[node.Id()] = []string{}
 }
 
-// AddEdge adds an edge to the graph.
+// AddEdge 向图中添加边
 func (dga *DGAGraph) AddEdge(src, dest Node) error {
 	if _, ok := dga.nodes[src.Id()]; !ok {
 		return fmt.Errorf("source vertex %s not found", src.Id())
@@ -65,39 +66,39 @@ func (dga *DGAGraph) AddEdge(src, dest Node) error {
 	return nil
 }
 
-// Traversal performs a breadth-first traversal of the DAG.
-// It executes the provided TraversalFn function for each node in the graph.
+// Traversal 对DAG执行广度优先遍历
+// 为图中的每个节点执行提供的 TraversalFn 函数
 func (dga *DGAGraph) Traversal(ctx context.Context, fn TraversalFn) error {
-	visited := make(map[string]bool)                        // Keep track of visited nodes
-	firstNodeID := dga.first.Id()                           // Get the ID of the first node
-	queue := []string{firstNodeID}                          // Initialize the queue with the first node
-	visited[firstNodeID] = true                             // Mark the first node as visited
-	if err := fn(ctx, dga.nodes[firstNodeID]); err != nil { // Execute the function for the first node
+	visited := make(map[string]bool)                        // 跟踪已访问的节点
+	firstNodeID := dga.first.Id()                           // 获取第一个节点的ID
+	queue := []string{firstNodeID}                          // 用第一个节点初始化队列
+	visited[firstNodeID] = true                             // 标记第一个节点为已访问
+	if err := fn(ctx, dga.nodes[firstNodeID]); err != nil { // 为第一个节点执行函数
 		return err
 	}
-	for len(queue) > 0 { // Continue until the queue is empty
-		vertexFocuse := queue[0]                           // Get the next node from the queue
-		queue = queue[1:]                                  // Remove the node from the queue
-		g, ctx := errgroup.WithContext(ctx)                // Create a new context for concurrent goroutines
-		for _, neighbor := range dga.graph[vertexFocuse] { // Iterate over the neighbors of the current node
-			if visited[neighbor] { // Check if the neighbor has already been visited
+	for len(queue) > 0 { // 继续直到队列为空
+		vertexFocuse := queue[0]                           // 从队列中获取下一个节点
+		queue = queue[1:]                                  // 从队列中移除节点
+		g, ctx := errgroup.WithContext(ctx)                // 为并发goroutine创建新上下文
+		for _, neighbor := range dga.graph[vertexFocuse] { // 遍历当前节点的邻居
+			if visited[neighbor] { // 检查邻居是否已被访问
 				continue
 			}
-			visited[neighbor] = true        // Mark the neighbor as visited
-			queue = append(queue, neighbor) // Add the neighbor to the queue
-			g.Go(func() error {             // Execute the function for the neighbor concurrently
+			visited[neighbor] = true        // 标记邻居为已访问
+			queue = append(queue, neighbor) // 将邻居添加到队列
+			g.Go(func() error {             // 并发地为邻居执行函数
 				return fn(ctx, dga.nodes[neighbor])
 			})
 		}
-		if err := g.Wait(); err != nil { // Wait for all goroutines to finish
+		if err := g.Wait(); err != nil { // 等待所有goroutine完成
 			return err
 		}
 	}
 	return nil
 }
 
-// cycleCheck checks if a cycle exists in the directed acyclic graph (DAG).
-// It returns true if a cycle is found, and false otherwise.
+// cycleCheck 检查有向无环图（DAG）中是否存在循环
+// 如果找到循环则返回 true，否则返回 false
 func (dga *DGAGraph) cycleCheck() bool {
 	indeg := make(map[string]int)
 	for v := range dga.nodes {
@@ -130,12 +131,15 @@ func (dga *DGAGraph) cycleCheck() bool {
 }
 
 type PipelineImpl struct {
-	id        string
-	graph     Graph
-	status    string
-	metadata  Metadata
-	listening ListeningFn
-	doneChan  <-chan struct{}
+	id         string
+	graph      Graph
+	status     string
+	metadata   Metadata
+	listening  ListeningFn
+	listener   Listener
+	doneChan   <-chan struct{}
+	cancelFunc context.CancelFunc
+	mu         sync.RWMutex
 }
 
 func NewPipeline(ctx context.Context) Pipeline {
@@ -144,57 +148,138 @@ func NewPipeline(ctx context.Context) Pipeline {
 	}
 }
 
-// Id returns the ID of the pipeline.
+// Id 返回流水线的ID
 func (p *PipelineImpl) Id() string {
 	return p.id
 }
 
-// GetGraph returns the graph structure of the pipeline.
+// GetGraph 返回流水线的图结构
 func (p *PipelineImpl) GetGraph() Graph {
 	return p.graph
 }
 
-// SetGraph sets the graph structure of the pipeline.
+// SetGraph 设置流水线的图结构
 func (p *PipelineImpl) SetGraph(graph Graph) {
 	p.graph = graph
 }
 
-// Status returns the overall status of the pipeline.
+// Status 返回流水线的整体状态
 func (p *PipelineImpl) Status() string {
 	return p.status
 }
 
-// Metadata returns the source data for pipeline execution.
+// Metadata 返回流水线执行的源数据
 func (p *PipelineImpl) Metadata() Metadata {
 	return Metadata{}
 }
 
-// Listening sets the pipeline execution event listener.
+// Listening 设置流水线执行事件监听器
 func (p *PipelineImpl) Listening(fn Listener) {
-
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.listener = fn
 }
 
-// Done returns a channel that signals when the pipeline is finished.
+// Done 返回一个通道，用于通知流水线何时完成
 func (p *PipelineImpl) Done() <-chan struct{} {
 	return p.doneChan
 }
 
-// Run executes the pipeline.
+// Run 执行流水线
 func (p *PipelineImpl) Run(ctx context.Context) error {
+	p.mu.Lock()
+	ctx, cancel := context.WithCancel(ctx)
+	p.cancelFunc = cancel
+	p.mu.Unlock()
+
 	done := make(chan struct{})
 	p.doneChan = done
+
+	defer func() {
+		close(done)
+		p.mu.Lock()
+		p.cancelFunc = nil
+		p.mu.Unlock()
+	}()
+
+	// 通知流水线开始
+	p.notifyEvent(PipelineStart)
+
 	err := p.graph.Traversal(ctx, func(ctx context.Context, node Node) error {
+		// 通知节点开始
+		p.notifyEvent(PipelineNodeStart)
 		fmt.Println(node.Id())
+		// 通知节点完成
+		p.notifyEvent(PipelineNodeFinish)
 		return nil
 	})
-	close(done)
+
+	// 通知流水线完成
+	p.notifyEvent(PipelineFinish)
 	return err
 }
 
+// 这个主要是在运行过程中节点状态或者流水线状态变化，就会触发这个函数
+// 节点
+// 我们就可以在这里做一些处理
+// 执行ListeningFn函数
 func (p *PipelineImpl) Notify() {
+	p.mu.RLock()
+	listening := p.listening
+	listener := p.listener
+	p.mu.RUnlock()
 
+	// 如果设置了ListeningFn则调用它
+	if listening != nil {
+		listening(p)
+	}
+
+	// 如果设置了事件监听器则处理它
+	if listener != nil {
+		// 通知当前状态
+		p.notifyCurrentStatus(listener)
+	}
 }
 
+// 终止流水线
 func (p *PipelineImpl) Cancel() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 
+	if p.cancelFunc != nil {
+		p.cancelFunc()
+		p.status = "CANCELLED"
+
+		// 通知监听器关于取消事件
+		if p.listener != nil {
+			p.listener.Handle(p, "pipeline-cancelled")
+		}
+
+		if p.listening != nil {
+			p.listening(p)
+		}
+	}
+}
+
+// notifyEvent 通知监听器特定事件
+func (p *PipelineImpl) notifyEvent(event Event) {
+	p.mu.RLock()
+	listener := p.listener
+	listening := p.listening
+	p.mu.RUnlock()
+
+	if listener != nil {
+		listener.Handle(p, event)
+	}
+
+	if listening != nil {
+		listening(p)
+	}
+}
+
+// notifyCurrentStatus 通知监听器当前流水线状态
+func (p *PipelineImpl) notifyCurrentStatus(listener Listener) {
+	// 此方法可用于通知详细的状态变化
+	// 目前，它仅用当前流水线调用监听器
+	listener.Handle(p, Event("pipeline-status-update"))
 }
