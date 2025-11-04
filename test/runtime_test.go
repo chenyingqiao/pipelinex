@@ -194,6 +194,9 @@ Nodes:
 		t.Fatalf("RunAsync failed: %v", err)
 	}
 
+	// 等待流水线开始执行
+	time.Sleep(100 * time.Millisecond)
+
 	// Cancel pipeline
 	err = runtime.Cancel(ctx, "test-cancel-pipeline")
 	if err != nil {

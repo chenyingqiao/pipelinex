@@ -29,6 +29,7 @@ type NodeConfig struct {
 // RuntimeImpl Runtime接口的实现
 type RuntimeImpl struct {
 	pipelines  map[string]Pipeline // 存储所有流水线
+	pipelineIds map[string]bool   // 跟踪所有使用过的流水线ID
 	mu         sync.RWMutex        // 读写锁
 	ctx        context.Context     // 上下文
 	cancel     context.CancelFunc  // 取消函数
@@ -41,6 +42,7 @@ func NewRuntime(ctx context.Context) Runtime {
 	ctx, cancel := context.WithCancel(ctx)
 	return &RuntimeImpl{
 		pipelines:  make(map[string]Pipeline),
+		pipelineIds: make(map[string]bool),
 		ctx:        ctx,
 		cancel:     cancel,
 		doneChan:   make(chan struct{}),
@@ -84,7 +86,7 @@ func (r *RuntimeImpl) RunAsync(ctx context.Context, id string, config string, li
 	defer r.mu.Unlock()
 
 	// 检查是否已存在相同ID的流水线
-	if _, exists := r.pipelines[id]; exists {
+	if _, exists := r.pipelineIds[id]; exists {
 		return nil, fmt.Errorf("pipeline with id %s already exists", id)
 	}
 
@@ -106,8 +108,9 @@ func (r *RuntimeImpl) RunAsync(ctx context.Context, id string, config string, li
 	graph := r.buildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
-	// 存储流水线
+	// 存储流水线并标记ID为已使用
 	r.pipelines[id] = pipeline
+	r.pipelineIds[id] = true
 
 	// 异步执行流水线
 	go func() {
@@ -131,7 +134,7 @@ func (r *RuntimeImpl) RunSync(ctx context.Context, id string, config string, lis
 	defer r.mu.Unlock()
 
 	// 检查是否已存在相同ID的流水线
-	if _, exists := r.pipelines[id]; exists {
+	if _, exists := r.pipelineIds[id]; exists {
 		return nil, fmt.Errorf("pipeline with id %s already exists", id)
 	}
 
@@ -153,20 +156,17 @@ func (r *RuntimeImpl) RunSync(ctx context.Context, id string, config string, lis
 	graph := r.buildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
-	// 存储流水线
+	// 存储流水线并标记ID为已使用
 	r.pipelines[id] = pipeline
-
-	// 同步执行流水线
-	defer func() {
-		r.mu.Lock()
-		delete(r.pipelines, id)
-		r.mu.Unlock()
-	}()
+	r.pipelineIds[id] = true
 
 	err = pipeline.Run(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("pipeline execution failed: %w", err)
 	}
+
+	// 清理已完成的流水线，但保留ID记录
+	delete(r.pipelines, id)
 
 	return pipeline, nil
 }
@@ -209,8 +209,12 @@ func (r *RuntimeImpl) Ctx() context.Context {
 // StopBackground 停止后台处理
 func (r *RuntimeImpl) StopBackground() {
 	r.cancel()
-	close(r.doneChan)
-	close(r.background)
+	select {
+	case <-r.doneChan:
+		// Channel already closed
+	default:
+		close(r.doneChan)
+	}
 }
 
 // parseConfig 解析流水线配置

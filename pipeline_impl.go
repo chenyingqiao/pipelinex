@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/thoas/go-funk"
@@ -206,9 +207,28 @@ func (p *PipelineImpl) Run(ctx context.Context) error {
 	p.notifyEvent(PipelineStart)
 
 	err := p.graph.Traversal(ctx, func(ctx context.Context, node Node) error {
+		// 检查context是否已取消
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		// 通知节点开始
 		p.notifyEvent(PipelineNodeStart)
 		fmt.Println(node.Id())
+
+		// 模拟工作执行，检查context取消
+		for i := 0; i < 10; i++ {
+			select {
+			case <-ctx.Done():
+				fmt.Printf("Pipeline cancelled for node %s\n", node.Id())
+				return ctx.Err()
+			case <-time.After(100 * time.Millisecond):
+				// 继续执行
+			}
+		}
+
 		// 通知节点完成
 		p.notifyEvent(PipelineNodeFinish)
 		return nil
