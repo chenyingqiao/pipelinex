@@ -21,3 +21,4 @@ This is a programming library that can execute CICD tasks and can support Docker
 # 目前问题
 
 - 单元测试无法运行完成
+- 配置文件添加状态字段, 但是执行器没有实现根据状态进行执行
