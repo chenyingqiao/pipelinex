@@ -22,4 +22,6 @@ type Runtime interface {
 	Ctx() context.Context
 	//停止后台处理
 	StopBackground()
+	// 启动后台
+	StartBackground()
 }

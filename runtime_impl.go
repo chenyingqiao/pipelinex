@@ -253,7 +253,7 @@ func (r *RuntimeImpl) parseGraphEdges(graph Graph, nodeMap map[string]Node, grap
 	_ = graphStr // 避免未使用变量警告
 }
 
-// StartBackground 启动后台处理（可选方法）
+// StartBackground 启动后台处理
 func (r *RuntimeImpl) StartBackground() {
 	go func() {
 		defer close(r.background)

@@ -14,5 +14,10 @@ This is a programming library that can execute CICD tasks and can support Docker
 
 - status store (现在是和日志强绑定的，需要库中提供接口来实现状态的读取和保存)
 - 有向无环图
-- k8s ssh持久连接需要一个连接做多个事情，如果这些事情是串行的
-- 
+- k8s ssh持久连接需要一个连接做多个事情，如果这些事情是串行的.
+- https://github.com/flosch/pongo2 模板引擎支持，本身就支持多层渲染。 
+
+
+# 目前问题
+
+- 单元测试无法运行完成

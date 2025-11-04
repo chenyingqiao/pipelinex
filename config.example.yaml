@@ -6,13 +6,28 @@ Param:
 Graph: |
   Merge->Build
   Build->Deploy
-  AutoTest->Deploy
+
+Status:
+  Merge: Finished
+  Build: Running
+  Deploy: Unknown
 
 Nodes:
   Merge:
     Image: xxxxxx
     Config:
-      | # 通过拼接命令，在agent这边启动一个http服务然pod自己过来拉文件保存到对应的目录，可以通过curl -O 实现
       SourceBranch: test
+      TargetBranch: release
+    Cmd: tar -zcvf .
+  Build:
+    Image: xxxxxx
+    Config:
+      SourceBranch: release
+      TargetBranch: release
+    Cmd: tar -zcvf .
+  Deploy:
+    Image: xxxxxx
+    Config:
+      SourceBranch: release
       TargetBranch: release
     Cmd: tar -zcvf .
