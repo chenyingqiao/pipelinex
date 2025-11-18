@@ -3,9 +3,9 @@ Param:
   C:
     kk: 1
 
-Graph: |
-  Merge->Build
-  Build->Deploy
+Graph:
+  - Merge->Build
+  - Build->Deploy
 
 Status:
   Merge: Finished
