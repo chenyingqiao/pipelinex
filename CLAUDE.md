@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-回答请都使用中文
+Please answer in Chinese.
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 

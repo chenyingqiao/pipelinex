@@ -14,16 +14,42 @@ var _ Runtime = (*RuntimeImpl)(nil)
 
 // PipelineConfig 流水线配置结构
 type PipelineConfig struct {
-	Param map[string]interface{} `yaml:"Param"`
-	Graph string                 `yaml:"Graph"`
-	Nodes map[string]NodeConfig  `yaml:"Nodes"`
+	Version   string                    `yaml:"Version"`
+	Name      string                    `yaml:"Name"`
+	Param     map[string]interface{}    `yaml:"Param"`
+	Executors map[string]ExecutorConfig `yaml:"Executors"`
+	Logging   LoggingConfig             `yaml:"Logging"`
+	Graph     string                    `yaml:"Graph"`
+	Status    map[string]string         `yaml:"Status"`
+	Nodes     map[string]NodeConfig     `yaml:"Nodes"`
+}
+
+// ExecutorConfig 执行器配置结构
+type ExecutorConfig struct {
+	Type   string                 `yaml:"type"`
+	Config map[string]interface{} `yaml:"config"`
+}
+
+// LoggingConfig 日志配置结构
+type LoggingConfig struct {
+	Endpoint string            `yaml:"endpoint"`
+	Headers  map[string]string `yaml:"headers"`
+	Timeout  string            `yaml:"timeout"`
+	Retry    int               `yaml:"retry"`
+}
+
+// Step 步骤配置结构
+type Step struct {
+	Name string `yaml:"name"`
+	Run  string `yaml:"run"`
 }
 
 // NodeConfig 节点配置结构
 type NodeConfig struct {
-	Image  string                 `yaml:"Image"`
-	Config map[string]interface{} `yaml:"Config"`
-	Cmd    string                 `yaml:"Cmd"`
+	Executor string                 `yaml:"executor"`
+	Image    string                 `yaml:"image"`
+	Steps    []Step                 `yaml:"steps"`
+	Config   map[string]interface{} `yaml:"Config"`
 }
 
 // RuntimeImpl Runtime接口的实现
