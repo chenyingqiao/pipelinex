@@ -54,13 +54,14 @@ type NodeConfig struct {
 
 // RuntimeImpl Runtime接口的实现
 type RuntimeImpl struct {
-	pipelines  map[string]Pipeline // 存储所有流水线
-	pipelineIds map[string]bool   // 跟踪所有使用过的流水线ID
-	mu         sync.RWMutex        // 读写锁
-	ctx        context.Context     // 上下文
-	cancel     context.CancelFunc  // 取消函数
-	doneChan   chan struct{}       // 完成通道
-	background chan struct{}       // 后台处理完成通道
+	pipelines   map[string]Pipeline // 存储所有流水线
+	pipelineIds map[string]bool     // 跟踪所有使用过的流水线ID
+	mu          sync.RWMutex        // 读写锁
+	ctx         context.Context     // 上下文
+	cancel      context.CancelFunc  // 取消函数
+	doneChan    chan struct{}       // 完成通道
+	background  chan struct{}       // 后台处理完成通道
+	pusher      Pusher              // 日志推送器
 }
 
 // NewRuntime 创建新的Runtime实例
@@ -317,4 +318,11 @@ func (r *RuntimeImpl) cleanupCompletedPipelines() {
 			// 流水线仍在运行
 		}
 	}
+}
+
+// SetPusher 设置日志推送器
+func (r *RuntimeImpl) SetPusher(pusher Pusher) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.pusher = pusher
 }

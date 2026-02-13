@@ -1,6 +1,23 @@
 Version: "1.0"
 Name: my-pipeline
 
+AI:
+  # 核心：一句话描述意图，用于理解上下文
+  intent: "Go 微服务构建并部署到 K8s，包含测试"
+  
+  # 核心：关键约束，用于验证和修复
+  constraints:
+    - "多阶段构建"
+    - "非 root 用户运行"
+    - "必须通过单元测试"
+  
+  # 核心：模板标识，用于推荐和复用
+  template: "go-microservice"
+  
+  # 核心：生成信息，用于追踪
+  generatedAt: "2024-01-15T10:30:00Z"
+  version: 1
+
 Param:
   buildId: "2323"
   namespace: "production"

@@ -24,4 +24,6 @@ type Runtime interface {
 	StopBackground()
 	// 启动后台
 	StartBackground()
+	// 设置日志推送器
+	SetPusher(pusher Pusher)
 }
