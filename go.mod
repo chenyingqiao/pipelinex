@@ -1,6 +1,6 @@
 module github.com/chenyingqiao/pipelinex
 
-go 1.23.0
+go 1.25
 
 require (
 	github.com/golang/glog v1.2.0
@@ -39,10 +39,11 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
+	github.com/tetrafolium/mermaid-check v0.0.0-20260203084344-828ef3fdbd8b // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect
-	golang.org/x/sys v0.13.0 // indirect
+	golang.org/x/sys v0.25.0 // indirect
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/time v0.3.0 // indirect

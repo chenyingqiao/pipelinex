@@ -377,3 +377,164 @@ func (l *TestListener) Events() []pipelinex.Event {
 		pipelinex.PipelineNodeFinish,
 	}
 }
+
+// TestParseGraphEdges_BasicStateDiagram 测试基本状态图解析
+func TestParseGraphEdges_BasicStateDiagram(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"Merge":  {},
+			"Build":  {},
+			"Deploy": {},
+		},
+		Graph: `stateDiagram-v2
+    direction LR
+    [*] --> Merge
+    Merge --> Build
+    Build --> Deploy
+    Deploy --> [*]`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	// 验证所有节点都存在
+	nodes := graph.Nodes()
+	if len(nodes) != 3 {
+		t.Errorf("Expected 3 nodes, got %d", len(nodes))
+	}
+
+	// 验证节点名称
+	expectedNodes := []string{"Merge", "Build", "Deploy"}
+	for _, name := range expectedNodes {
+		if _, ok := nodes[name]; !ok {
+			t.Errorf("Expected node %s not found", name)
+		}
+	}
+}
+
+// TestParseGraphEdges_ComplexDiagram 测试复杂状态图（并行路径）
+func TestParseGraphEdges_ComplexDiagram(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"Checkout": {},
+			"Lint":     {},
+			"Test":     {},
+			"Build":    {},
+			"Deploy":   {},
+		},
+		Graph: `stateDiagram-v2
+    [*] --> Checkout
+    Checkout --> Lint
+    Checkout --> Test
+    Lint --> Build
+    Test --> Build
+    Build --> Deploy
+    Deploy --> [*]`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	nodes := graph.Nodes()
+	if len(nodes) != 5 {
+		t.Errorf("Expected 5 nodes, got %d", len(nodes))
+	}
+}
+
+// TestParseGraphEdges_EmptyGraph 测试空图
+func TestParseGraphEdges_EmptyGraph(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"Node1": {},
+			"Node2": {},
+		},
+		Graph: "",
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	nodes := graph.Nodes()
+	if len(nodes) != 2 {
+		t.Errorf("Expected 2 nodes, got %d", len(nodes))
+	}
+}
+
+// TestParseGraphEdges_InvalidSyntax 测试无效语法
+func TestParseGraphEdges_InvalidSyntax(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"Node1": {},
+			"Node2": {},
+		},
+		Graph: `invalid diagram syntax here`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	// 即使图语法无效，也应该创建节点
+	nodes := graph.Nodes()
+	if len(nodes) != 2 {
+		t.Errorf("Expected 2 nodes even with invalid graph, got %d", len(nodes))
+	}
+}
+
+// TestParseGraphEdges_MissingNode 测试配置中缺失节点
+func TestParseGraphEdges_MissingNode(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"A": {},
+			// B 缺失
+			"C": {},
+		},
+		Graph: `stateDiagram-v2
+    [*] --> A
+    A --> B
+    B --> C
+    C --> [*]`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	// 即使 B 节点缺失在配置中，也应该创建存在的节点
+	nodes := graph.Nodes()
+	if len(nodes) != 2 {
+		t.Errorf("Expected 2 nodes (A and C), got %d", len(nodes))
+	}
+}
+
+// TestParseGraphEdges_WithNotes 测试带注释的图
+func TestParseGraphEdges_WithNotes(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"Start":   {},
+			"Process": {},
+			"End":     {},
+		},
+		Graph: `stateDiagram-v2
+    %% This is a comment
+    [*] --> Start
+    Start --> Process : with label
+    Process --> End
+    note right of Process
+        This is a note
+    end note
+    End --> [*]`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	nodes := graph.Nodes()
+	if len(nodes) != 3 {
+		t.Errorf("Expected 3 nodes, got %d", len(nodes))
+	}
+}

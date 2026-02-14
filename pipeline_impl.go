@@ -35,8 +35,8 @@ func NewDGAGraph() *DGAGraph {
 // Nodes 返回所有的节点map
 func (dga *DGAGraph) Nodes() map[string]Node {
 	dga.hasCycle = false
-	return funk.Map(dga.nodes, func(x Node) (string, Node) {
-		return x.Id(), x
+	return funk.Map(dga.nodes, func(k string, v Node) (string, Node) {
+		return k, v
 	}).(map[string]Node)
 }
 

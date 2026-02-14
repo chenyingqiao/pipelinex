@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tetrafolium/mermaid-check/ast"
+	"github.com/tetrafolium/mermaid-check/parser"
 	"gopkg.in/yaml.v2"
 )
 
@@ -16,12 +18,22 @@ var _ Runtime = (*RuntimeImpl)(nil)
 type PipelineConfig struct {
 	Version   string                    `yaml:"Version"`
 	Name      string                    `yaml:"Name"`
+	AI        AIConfig                  `yaml:"AI"`
 	Param     map[string]interface{}    `yaml:"Param"`
 	Executors map[string]ExecutorConfig `yaml:"Executors"`
 	Logging   LoggingConfig             `yaml:"Logging"`
 	Graph     string                    `yaml:"Graph"`
 	Status    map[string]string         `yaml:"Status"`
 	Nodes     map[string]NodeConfig     `yaml:"Nodes"`
+}
+
+// AIConfig AI配置结构
+type AIConfig struct {
+	Intent      string   `yaml:"intent"`      // 核心意图描述
+	Constraints []string `yaml:"constraints"` // 关键约束列表
+	Template    string   `yaml:"template"`    // 模板标识
+	GeneratedAt string   `yaml:"generatedAt"` // 生成时间
+	Version     int      `yaml:"version"`     // 版本号
 }
 
 // ExecutorConfig 执行器配置结构
@@ -132,7 +144,7 @@ func (r *RuntimeImpl) RunAsync(ctx context.Context, id string, config string, li
 	}
 
 	// 构建图结构
-	graph := r.buildGraph(pipelineConfig)
+	graph := r.BuildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
 	// 存储流水线并标记ID为已使用
@@ -180,7 +192,7 @@ func (r *RuntimeImpl) RunSync(ctx context.Context, id string, config string, lis
 	}
 
 	// 构建图结构
-	graph := r.buildGraph(pipelineConfig)
+	graph := r.BuildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
 	// 存储流水线并标记ID为已使用
@@ -256,8 +268,8 @@ func (r *RuntimeImpl) parseConfig(config string) (*PipelineConfig, error) {
 	return &pipelineConfig, nil
 }
 
-// buildGraph 构建图结构
-func (r *RuntimeImpl) buildGraph(config *PipelineConfig) Graph {
+// BuildGraph 构建图结构
+func (r *RuntimeImpl) BuildGraph(config *PipelineConfig) Graph {
 	graph := NewDGAGraph()
 
 	// 创建节点
@@ -277,11 +289,41 @@ func (r *RuntimeImpl) buildGraph(config *PipelineConfig) Graph {
 }
 
 // parseGraphEdges 解析图边关系
+// 使用 mermaid-check 库解析 stateDiagram-v2 语法
 func (r *RuntimeImpl) parseGraphEdges(graph Graph, nodeMap map[string]Node, graphStr string) {
-	// 简单的图解析，格式如 "A->B\nB->C"
-	// 这里可以实现更复杂的解析逻辑
-	// 暂时留空，可以根据实际需要实现
-	_ = graphStr // 避免未使用变量警告
+	stateParser := parser.NewStateParser()
+	diagram, err := stateParser.Parse(graphStr)
+	if err != nil {
+		// 解析失败时静默返回，不建立边关系
+		return
+	}
+
+	// 转换为状态图
+	stateDiagram, ok := diagram.(*ast.StateDiagram)
+	if !ok {
+		return
+	}
+
+	// 遍历所有语句，提取转换关系
+	for _, stmt := range stateDiagram.Statements {
+		// 尝试转换为 Transition
+		if transition, ok := stmt.(*ast.Transition); ok {
+			// 跳过 [*] 开始/结束节点
+			if transition.From == "[*]" || transition.To == "[*]" {
+				continue
+			}
+
+			srcNode, srcExists := nodeMap[transition.From]
+			destNode, destExists := nodeMap[transition.To]
+
+			if !srcExists || !destExists {
+				continue
+			}
+
+			// 添加边关系
+			_ = graph.AddEdge(srcNode, destNode)
+		}
+	}
 }
 
 // StartBackground 启动后台处理
