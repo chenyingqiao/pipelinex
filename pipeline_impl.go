@@ -75,50 +75,87 @@ func (dga *DGAGraph) AddEdge(src, dest Node) error {
 
 // Traversal 对DAG执行广度优先遍历
 // 为图中的每个节点执行提供的 TraversalFn 函数
+// 支持多个起始节点并发执行
 func (dga *DGAGraph) Traversal(ctx context.Context, fn TraversalFn) error {
 	dga.mu.RLock()
 	defer dga.mu.RUnlock()
 
-	visited := make(map[string]bool)                        // 跟踪已访问的节点
-	firstNodeID := dga.first.Id()                           // 获取第一个节点的ID
-	queue := []string{firstNodeID}                          // 用第一个节点初始化队列
-	visited[firstNodeID] = true                             // 标记第一个节点为已访问
-	if err := fn(ctx, dga.nodes[firstNodeID]); err != nil { // 为第一个节点执行函数
+	// 如果没有节点，直接返回
+	if len(dga.nodes) == 0 {
+		return nil
+	}
+
+	// 计算所有节点的入度
+	indeg := dga.getIndegrees()
+
+	// 收集所有入度为0的起始节点
+	startNodes := make([]string, 0)
+	for v, d := range indeg {
+		if d == 0 {
+			startNodes = append(startNodes, v)
+		}
+	}
+
+	if len(startNodes) == 0 {
+		return nil // 没有起始节点
+	}
+
+	visited := make(map[string]bool)
+	queue := make([]string, 0)
+
+	// 创建 errgroup 用于并发控制第一层
+	g, ctx := errgroup.WithContext(ctx)
+
+	// 并发执行所有起始节点
+	for _, startNodeID := range startNodes {
+		nodeID := startNodeID // 避免闭包捕获问题
+		visited[nodeID] = true
+		queue = append(queue, nodeID)
+
+		g.Go(func() error {
+			return fn(ctx, dga.nodes[nodeID])
+		})
+	}
+
+	// 等待所有起始节点完成
+	if err := g.Wait(); err != nil {
 		return err
 	}
-	for len(queue) > 0 { // 继续直到队列为空
-		vertexFocuse := queue[0]                           // 从队列中获取下一个节点
-		queue = queue[1:]                                  // 从队列中移除节点
-		g, ctx := errgroup.WithContext(ctx)                // 为并发goroutine创建新上下文
-		for _, neighbor := range dga.graph[vertexFocuse] { // 遍历当前节点的邻居
-			if visited[neighbor] { // 检查邻居是否已被访问
+
+	// BFS 遍历剩余节点
+	for len(queue) > 0 {
+		vertexFocus := queue[0]
+		queue = queue[1:]
+
+		// 为当前节点的所有邻居创建 errgroup
+		g, ctx := errgroup.WithContext(ctx)
+
+		for _, neighbor := range dga.graph[vertexFocus] {
+			if visited[neighbor] {
 				continue
 			}
-			visited[neighbor] = true        // 标记邻居为已访问
-			queue = append(queue, neighbor) // 将邻居添加到队列
-			g.Go(func() error {             // 并发地为邻居执行函数
+			visited[neighbor] = true
+			queue = append(queue, neighbor)
+
+			// 并发执行邻居节点
+			g.Go(func() error {
 				return fn(ctx, dga.nodes[neighbor])
 			})
 		}
-		if err := g.Wait(); err != nil { // 等待所有goroutine完成
+
+		// 等待当前层的所有 goroutine 完成
+		if err := g.Wait(); err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
 // cycleCheck 检查有向无环图（DAG）中是否存在循环
 // 如果找到循环则返回 true，否则返回 false
 func (dga *DGAGraph) cycleCheck() bool {
-	indeg := make(map[string]int)
-	for v := range dga.nodes {
-		indeg[v] = 0
-	}
-	for _, adj := range dga.graph {
-		for _, n := range adj {
-			indeg[n]++
-		}
-	}
+	indeg := dga.getIndegrees()
 	q := make([]string, 0)
 	for v, d := range indeg {
 		if d == 0 {
@@ -138,6 +175,21 @@ func (dga *DGAGraph) cycleCheck() bool {
 		}
 	}
 	return visited != len(dga.nodes)
+}
+
+// getIndegrees 计算所有节点的入度
+// 返回一个 map，key 是节点ID，value 是入度值
+func (dga *DGAGraph) getIndegrees() map[string]int {
+	indeg := make(map[string]int)
+	for v := range dga.nodes {
+		indeg[v] = 0
+	}
+	for _, adj := range dga.graph {
+		for _, n := range adj {
+			indeg[n]++
+		}
+	}
+	return indeg
 }
 
 // HasCycle 检查图中是否存在循环
