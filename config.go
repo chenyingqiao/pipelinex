@@ -4,6 +4,7 @@ package pipelinex
 type PipelineConfig struct {
 	Version   string                    `yaml:"Version"`
 	Name      string                    `yaml:"Name"`
+	Metadate  MetadataConfig            `yaml:"Metadate"`
 	AI        AIConfig                  `yaml:"AI"`
 	Param     map[string]interface{}    `yaml:"Param"`
 	Executors map[string]ExecutorConfig `yaml:"Executors"`
@@ -11,6 +12,12 @@ type PipelineConfig struct {
 	Graph     string                    `yaml:"Graph"`
 	Status    map[string]string         `yaml:"Status"`
 	Nodes     map[string]NodeConfig     `yaml:"Nodes"`
+}
+
+// MetadataConfig 元数据配置结构
+type MetadataConfig struct {
+	Type string                 `yaml:"type"`
+	Data map[string]interface{} `yaml:"data"`
 }
 
 // AIConfig AI配置结构
