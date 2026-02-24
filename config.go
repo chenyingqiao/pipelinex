@@ -20,6 +20,23 @@ type MetadataConfig struct {
 	Data map[string]interface{} `yaml:"data"`
 }
 
+// HTTPMetadataConfig HTTP元数据配置
+type HTTPMetadataConfig struct {
+	URL     string            `yaml:"url"`
+	Method  string            `yaml:"method"`
+	Headers map[string]string `yaml:"headers"`
+	Timeout string            `yaml:"timeout"`
+}
+
+// RedisMetadataConfig Redis元数据配置
+type RedisMetadataConfig struct {
+	Host     string `yaml:"host"`
+	Port     int    `yaml:"port"`
+	DB       int    `yaml:"db"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+}
+
 // AIConfig AI配置结构
 type AIConfig struct {
 	Intent      string   `yaml:"intent"`      // 核心意图描述

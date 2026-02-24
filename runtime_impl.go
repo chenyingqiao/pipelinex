@@ -97,6 +97,11 @@ func (r *RuntimeImpl) RunAsync(ctx context.Context, id string, config string, li
 	graph := r.BuildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
+	// 设置metadata
+	if err := r.setupMetadata(ctx, pipeline, pipelineConfig); err != nil {
+		return nil, fmt.Errorf("failed to setup metadata: %w", err)
+	}
+
 	// 存储流水线并标记ID为已使用
 	r.pipelines[id] = pipeline
 	r.pipelineIds[id] = true
@@ -144,6 +149,11 @@ func (r *RuntimeImpl) RunSync(ctx context.Context, id string, config string, lis
 	// 构建图结构
 	graph := r.BuildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
+
+	// 设置metadata
+	if err := r.setupMetadata(ctx, pipeline, pipelineConfig); err != nil {
+		return nil, fmt.Errorf("failed to setup metadata: %w", err)
+	}
 
 	// 存储流水线并标记ID为已使用
 	r.pipelines[id] = pipeline
@@ -204,6 +214,25 @@ func (r *RuntimeImpl) StopBackground() {
 	default:
 		close(r.doneChan)
 	}
+}
+
+// setupMetadata 设置流水线的metadata
+func (r *RuntimeImpl) setupMetadata(ctx context.Context, pipeline Pipeline, config *PipelineConfig) error {
+	// 检查是否有metadata配置（注意配置中是Metadate）
+	if config.Metadate.Type == "" {
+		return nil
+	}
+
+	// 创建metadata store
+	factory := NewMetadataStoreFactory()
+	store, err := factory.Create(config.Metadate)
+	if err != nil {
+		return fmt.Errorf("failed to create metadata store: %w", err)
+	}
+
+	// 设置到pipeline
+	pipeline.SetMetadata(store)
+	return nil
 }
 
 // parseConfig 解析流水线配置

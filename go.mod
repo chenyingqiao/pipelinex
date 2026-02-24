@@ -6,6 +6,7 @@ require (
 	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/golang/glog v1.2.0
 	github.com/google/uuid v1.4.0
+	github.com/redis/go-redis/v9 v9.18.0
 	github.com/spf13/cast v1.7.0
 	github.com/tetrafolium/mermaid-check v0.0.0-20260203084344-828ef3fdbd8b
 	github.com/thoas/go-funk v0.9.3
@@ -18,7 +19,9 @@ require (
 )
 
 require (
+	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v4.12.0+incompatible // indirect
 	github.com/go-logr/logr v1.3.0 // indirect
@@ -41,6 +44,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
+	go.uber.org/atomic v1.11.0 // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect

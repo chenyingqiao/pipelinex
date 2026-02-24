@@ -240,15 +240,16 @@ func (dga *DGAGraph) HasCycle() bool {
 }
 
 type PipelineImpl struct {
-	id         string
-	graph      Graph
-	status     string
-	metadata   Metadata
-	listening  ListeningFn
-	listener   Listener
-	doneChan   <-chan struct{}
-	cancelFunc context.CancelFunc
-	mu         sync.RWMutex
+	id             string
+	graph          Graph
+	status         string
+	metadata       Metadata
+	metadataStore  MetadataStore
+	listening      ListeningFn
+	listener       Listener
+	doneChan       <-chan struct{}
+	cancelFunc     context.CancelFunc
+	mu             sync.RWMutex
 }
 
 func NewPipeline(ctx context.Context) Pipeline {
@@ -283,9 +284,33 @@ func (p *PipelineImpl) Status() string {
 	return p.status
 }
 
-// Metadata 返回流水线执行的源数据
+// SetMetadata 设置流水线的元数据存储
+func (p *PipelineImpl) SetMetadata(store MetadataStore) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.metadataStore = store
+}
+
+// Metadata 获取流水线的元数据
 func (p *PipelineImpl) Metadata() Metadata {
-	return Metadata{}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+
+	if p.metadata == nil {
+		p.metadata = make(Metadata)
+	}
+
+	// 如果有 metadataStore，从 store 加载数据
+	if p.metadataStore != nil {
+		// 从 InConfigMetadataStore 加载所有数据
+		if inConfigStore, ok := p.metadataStore.(*InConfigMetadataStore); ok {
+			for k, v := range inConfigStore.data {
+				p.metadata[k] = v
+			}
+		}
+	}
+
+	return p.metadata
 }
 
 // Listening 设置流水线执行事件监听器
@@ -324,6 +349,23 @@ func (p *PipelineImpl) Run(ctx context.Context) error {
 
 	// 创建求值上下文
 	evalCtx := NewEvaluationContext().WithPipeline(p)
+
+	// 如果有元数据存储，加载数据到求值上下文
+	if p.metadataStore != nil {
+		params := make(map[string]any)
+		// 这里可以根据需求加载特定的元数据键
+		// 目前加载所有配置中的数据（仅in-config类型适用）
+		if inConfigStore, ok := p.metadataStore.(*InConfigMetadataStore); ok {
+			for key := range inConfigStore.data {
+				if val, err := inConfigStore.Get(ctx, key); err == nil {
+					params[key] = val
+				}
+			}
+		}
+		if len(params) > 0 {
+			evalCtx = evalCtx.WithParams(params)
+		}
+	}
 
 	err := p.graph.Traversal(ctx, evalCtx, func(ctx context.Context, node Node) error {
 		// 检查context是否已取消

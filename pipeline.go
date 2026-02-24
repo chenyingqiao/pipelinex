@@ -55,7 +55,9 @@ type Pipeline interface {
 	SetGraph(graph Graph)
 	//Status 返回流水线的整体状态
 	Status() string
-	//Metadata 返回流水线执行的源数据
+	//SetMetadata 设置元数据
+	SetMetadata(store MetadataStore)
+	//Metadata 获取元数据
 	Metadata() Metadata
 	//Listening 流水线执行事件监听设置
 	Listening(listener Listener)
