@@ -23,13 +23,15 @@ func TestDGA_BFS(t *testing.T) {
 		{node2, node3},
 		{node4, node3},
 	} {
-		if err := dgaGraph.AddEdge(e[0], e[1]); err != nil {
+		edge := pipelinex.NewDGAEdge(e[0], e[1])
+		if err := dgaGraph.AddEdge(edge); err != nil {
 			t.Fatalf("AddEdge(%s→%s): %v", e[0].Id(), e[1].Id(), err)
 		}
 	}
 	// Collect visited nodes to verify traversal order
 	visited := []string{}
-	if err := dgaGraph.Traversal(context.Background(), func(ctx context.Context, node pipelinex.Node) error {
+	evalCtx := pipelinex.NewEvaluationContext()
+	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited = append(visited, node.Id())
 		return nil
@@ -65,14 +67,16 @@ func TestDGA_MultipleStartNodes(t *testing.T) {
 		{nodeA, nodeC},
 		{nodeB, nodeC},
 	} {
-		if err := dgaGraph.AddEdge(e[0], e[1]); err != nil {
+		edge := pipelinex.NewDGAEdge(e[0], e[1])
+		if err := dgaGraph.AddEdge(edge); err != nil {
 			t.Fatalf("AddEdge(%s→%s): %v", e[0].Id(), e[1].Id(), err)
 		}
 	}
 
 	// 收集访问的节点
 	visited := make(map[string]bool)
-	if err := dgaGraph.Traversal(context.Background(), func(ctx context.Context, node pipelinex.Node) error {
+	evalCtx := pipelinex.NewEvaluationContext()
+	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited[node.Id()] = true
 		return nil
@@ -109,7 +113,8 @@ func TestPipeline_Run(t *testing.T) {
 		{node2, node3},
 		{node4, node3},
 	} {
-		if err := dgaGraph.AddEdge(e[0], e[1]); err != nil {
+		edge := pipelinex.NewDGAEdge(e[0], e[1])
+		if err := dgaGraph.AddEdge(edge); err != nil {
 			t.Fatalf("AddEdge(%s→%s): %v", e[0].Id(), e[1].Id(), err)
 		}
 	}

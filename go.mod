@@ -3,9 +3,11 @@ module github.com/chenyingqiao/pipelinex
 go 1.25
 
 require (
+	github.com/flosch/pongo2/v6 v6.0.0
 	github.com/golang/glog v1.2.0
 	github.com/google/uuid v1.4.0
 	github.com/spf13/cast v1.7.0
+	github.com/tetrafolium/mermaid-check v0.0.0-20260203084344-828ef3fdbd8b
 	github.com/thoas/go-funk v0.9.3
 	golang.org/x/sync v0.13.0
 	gopkg.in/yaml.v2 v2.4.0
@@ -39,7 +41,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/stretchr/testify v1.10.0 // indirect
-	github.com/tetrafolium/mermaid-check v0.0.0-20260203084344-828ef3fdbd8b // indirect
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/oauth2 v0.10.0 // indirect

@@ -20,14 +20,14 @@ type Graph interface {
 	//AddVertex 添加顶点
 	AddVertex(node Node)
 	//AddEdge 添加边
-	AddEdge(src, dest Node) error
+	AddEdge(edge Edge) error
 }
 
 type GraphReader interface {
 	//Nodes
 	Nodes() map[string]Node
 	//Traversal 遍历图结构
-	Traversal(ctx context.Context, fn TraversalFn) error
+	Traversal(ctx context.Context, evalCtx EvaluationContext, fn TraversalFn) error
 }
 
 // 流水线事件

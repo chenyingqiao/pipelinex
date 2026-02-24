@@ -31,10 +31,10 @@ type Entry struct {
 type Pusher interface {
 	// Push 推送单条日志
 	Push(ctx context.Context, entry Entry) error
-	
+
 	// PushBatch 批量推送
 	PushBatch(ctx context.Context, entries []Entry) error
-	
+
 	// Close 关闭连接，刷新缓冲
 	Close() error
 }

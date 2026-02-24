@@ -18,9 +18,10 @@ var _ Graph = (*DGAGraph)(nil)
 // 保存了流水线的图结构
 type DGAGraph struct {
 	mu       sync.RWMutex
-	first    Node
 	nodes    map[string]Node
-	graph    map[string][]string
+	edges    map[string]Edge            // edgeID -> Edge
+	graph    map[string][]string        // src -> [dest1, dest2, ...] (保持兼容性)
+	edgeMap  map[string]map[string]Edge // src -> dest -> Edge (快速查找)
 	sequence []string
 	hasCycle bool
 }
@@ -28,7 +29,9 @@ type DGAGraph struct {
 func NewDGAGraph() *DGAGraph {
 	return &DGAGraph{
 		nodes:    map[string]Node{},
+		edges:    map[string]Edge{},
 		graph:    map[string][]string{},
+		edgeMap:  map[string]map[string]Edge{},
 		sequence: []string{},
 	}
 }
@@ -48,24 +51,37 @@ func (dga *DGAGraph) Nodes() map[string]Node {
 func (dga *DGAGraph) AddVertex(node Node) {
 	dga.mu.Lock()
 	defer dga.mu.Unlock()
-	if dga.first == nil {
-		dga.first = node
-	}
 	dga.nodes[node.Id()] = node
 	dga.graph[node.Id()] = []string{}
 }
 
 // AddEdge 向图中添加边
-func (dga *DGAGraph) AddEdge(src, dest Node) error {
+func (dga *DGAGraph) AddEdge(edge Edge) error {
 	dga.mu.Lock()
 	defer dga.mu.Unlock()
+
+	src := edge.Source()
+	dest := edge.Target()
+
 	if _, ok := dga.nodes[src.Id()]; !ok {
 		return fmt.Errorf("source vertex %s not found", src.Id())
 	}
 	if _, ok := dga.nodes[dest.Id()]; !ok {
 		return fmt.Errorf("dest vertex %s not found", dest.Id())
 	}
+
+	// 添加到edges映射
+	dga.edges[edge.ID()] = edge
+
+	// 添加到graph映射（保持兼容性）
 	dga.graph[src.Id()] = append(dga.graph[src.Id()], dest.Id())
+
+	// 添加到edgeMap（快速查找）
+	if dga.edgeMap[src.Id()] == nil {
+		dga.edgeMap[src.Id()] = make(map[string]Edge)
+	}
+	dga.edgeMap[src.Id()][dest.Id()] = edge
+
 	dga.hasCycle = dga.cycleCheck()
 	if dga.hasCycle {
 		return ErrHasCycle
@@ -76,7 +92,8 @@ func (dga *DGAGraph) AddEdge(src, dest Node) error {
 // Traversal 对DAG执行广度优先遍历
 // 为图中的每个节点执行提供的 TraversalFn 函数
 // 支持多个起始节点并发执行
-func (dga *DGAGraph) Traversal(ctx context.Context, fn TraversalFn) error {
+// 支持条件边：如果边有表达式，会评估表达式决定是否遍历该边
+func (dga *DGAGraph) Traversal(ctx context.Context, evalCtx EvaluationContext, fn TraversalFn) error {
 	dga.mu.RLock()
 	defer dga.mu.RUnlock()
 
@@ -85,7 +102,7 @@ func (dga *DGAGraph) Traversal(ctx context.Context, fn TraversalFn) error {
 		return nil
 	}
 
-	// 计算所有节点的入度
+	// 计算所有节点的入度（基于原始图结构）
 	indeg := dga.getIndegrees()
 
 	// 收集所有入度为0的起始节点
@@ -134,13 +151,36 @@ func (dga *DGAGraph) Traversal(ctx context.Context, fn TraversalFn) error {
 			if visited[neighbor] {
 				continue
 			}
-			visited[neighbor] = true
-			queue = append(queue, neighbor)
 
-			// 并发执行邻居节点
-			g.Go(func() error {
-				return fn(ctx, dga.nodes[neighbor])
-			})
+			// 获取边并评估条件
+			shouldTraverse := true
+			if edge, ok := dga.edgeMap[vertexFocus][neighbor]; ok && edge.Expression() != "" {
+				result, err := edge.Evaluate(evalCtx)
+				if err != nil {
+					return fmt.Errorf("failed to evaluate edge condition %s->%s: %w",
+						vertexFocus, neighbor, err)
+				}
+				shouldTraverse = result
+			}
+
+			// 条件不满足，跳过此边（不减少入度）
+			if !shouldTraverse {
+				continue
+			}
+
+			// 减少邻居的入度
+			indeg[neighbor]--
+
+			// 只有当入度减为0时才访问节点
+			if indeg[neighbor] == 0 {
+				visited[neighbor] = true
+				queue = append(queue, neighbor)
+
+				// 并发执行邻居节点
+				g.Go(func() error {
+					return fn(ctx, dga.nodes[neighbor])
+				})
+			}
 		}
 
 		// 等待当前层的所有 goroutine 完成
@@ -282,7 +322,10 @@ func (p *PipelineImpl) Run(ctx context.Context) error {
 	// 通知流水线开始
 	p.notifyEvent(PipelineStart)
 
-	err := p.graph.Traversal(ctx, func(ctx context.Context, node Node) error {
+	// 创建求值上下文
+	evalCtx := NewEvaluationContext().WithPipeline(p)
+
+	err := p.graph.Traversal(ctx, evalCtx, func(ctx context.Context, node Node) error {
 		// 检查context是否已取消
 		select {
 		case <-ctx.Done():

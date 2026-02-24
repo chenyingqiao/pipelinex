@@ -80,12 +80,12 @@ type RuntimeImpl struct {
 func NewRuntime(ctx context.Context) Runtime {
 	ctx, cancel := context.WithCancel(ctx)
 	return &RuntimeImpl{
-		pipelines:  make(map[string]Pipeline),
+		pipelines:   make(map[string]Pipeline),
 		pipelineIds: make(map[string]bool),
-		ctx:        ctx,
-		cancel:     cancel,
-		doneChan:   make(chan struct{}),
-		background: make(chan struct{}),
+		ctx:         ctx,
+		cancel:      cancel,
+		doneChan:    make(chan struct{}),
+		background:  make(chan struct{}),
 	}
 }
 
@@ -321,7 +321,8 @@ func (r *RuntimeImpl) parseGraphEdges(graph Graph, nodeMap map[string]Node, grap
 			}
 
 			// 添加边关系
-			_ = graph.AddEdge(srcNode, destNode)
+			edge := NewDGAEdge(srcNode, destNode)
+			_ = graph.AddEdge(edge)
 		}
 	}
 }
