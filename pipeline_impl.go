@@ -17,6 +17,7 @@ var _ Graph = (*DGAGraph)(nil)
 
 // 保存了流水线的图结构
 type DGAGraph struct {
+	mu       sync.RWMutex
 	first    Node
 	nodes    map[string]Node
 	graph    map[string][]string
@@ -34,7 +35,8 @@ func NewDGAGraph() *DGAGraph {
 
 // Nodes 返回所有的节点map
 func (dga *DGAGraph) Nodes() map[string]Node {
-	dga.hasCycle = false
+	dga.mu.RLock()
+	defer dga.mu.RUnlock()
 	return funk.Map(dga.nodes, func(k string, v Node) (string, Node) {
 		return k, v
 	}).(map[string]Node)
@@ -44,6 +46,8 @@ func (dga *DGAGraph) Nodes() map[string]Node {
 // 检查是否存在循环；如果存在循环，则返回 ErrHasCycle
 // 否则返回 nil
 func (dga *DGAGraph) AddVertex(node Node) {
+	dga.mu.Lock()
+	defer dga.mu.Unlock()
 	if dga.first == nil {
 		dga.first = node
 	}
@@ -53,6 +57,8 @@ func (dga *DGAGraph) AddVertex(node Node) {
 
 // AddEdge 向图中添加边
 func (dga *DGAGraph) AddEdge(src, dest Node) error {
+	dga.mu.Lock()
+	defer dga.mu.Unlock()
 	if _, ok := dga.nodes[src.Id()]; !ok {
 		return fmt.Errorf("source vertex %s not found", src.Id())
 	}
@@ -70,6 +76,9 @@ func (dga *DGAGraph) AddEdge(src, dest Node) error {
 // Traversal 对DAG执行广度优先遍历
 // 为图中的每个节点执行提供的 TraversalFn 函数
 func (dga *DGAGraph) Traversal(ctx context.Context, fn TraversalFn) error {
+	dga.mu.RLock()
+	defer dga.mu.RUnlock()
+
 	visited := make(map[string]bool)                        // 跟踪已访问的节点
 	firstNodeID := dga.first.Id()                           // 获取第一个节点的ID
 	queue := []string{firstNodeID}                          // 用第一个节点初始化队列
@@ -131,6 +140,13 @@ func (dga *DGAGraph) cycleCheck() bool {
 	return visited != len(dga.nodes)
 }
 
+// HasCycle 检查图中是否存在循环
+func (dga *DGAGraph) HasCycle() bool {
+	dga.mu.RLock()
+	defer dga.mu.RUnlock()
+	return dga.hasCycle
+}
+
 type PipelineImpl struct {
 	id         string
 	graph      Graph
@@ -156,16 +172,22 @@ func (p *PipelineImpl) Id() string {
 
 // GetGraph 返回流水线的图结构
 func (p *PipelineImpl) GetGraph() Graph {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.graph
 }
 
 // SetGraph 设置流水线的图结构
 func (p *PipelineImpl) SetGraph(graph Graph) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	p.graph = graph
 }
 
 // Status 返回流水线的整体状态
 func (p *PipelineImpl) Status() string {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.status
 }
 
@@ -183,6 +205,8 @@ func (p *PipelineImpl) Listening(fn Listener) {
 
 // Done 返回一个通道，用于通知流水线何时完成
 func (p *PipelineImpl) Done() <-chan struct{} {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.doneChan
 }
 
