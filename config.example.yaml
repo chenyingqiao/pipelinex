@@ -1,6 +1,12 @@
 Version: "1.0"
 Name: my-pipeline
 
+Metadate:
+  type: in-config
+  data:
+    key1: value1
+    key2: value2
+
 AI:
   # 核心：一句话描述意图，用于理解上下文
   intent: "Go 微服务构建并部署到 K8s，包含测试"
