@@ -8,7 +8,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/thoas/go-funk"
-	"golang.org/x/sync/errgroup"
 )
 
 // 预检查PipelineImpl是否实现了Pipeline接口
@@ -131,23 +130,33 @@ func (dga *DGAGraph) Traversal(ctx context.Context, evalCtx EvaluationContext, f
 	visited := make(map[string]bool)
 	queue := make([]string, 0)
 
-	// 创建 errgroup 用于并发控制第一层
-	g, ctx := errgroup.WithContext(ctx)
-
 	// 并发执行所有起始节点
+	var wg sync.WaitGroup
+	var errMu sync.Mutex
+	var firstErr error
+
 	for _, startNodeID := range startNodes {
 		nodeID := startNodeID // 避免闭包捕获问题
 		visited[nodeID] = true
 		queue = append(queue, nodeID)
 
-		g.Go(func() error {
-			return fn(ctx, dga.nodes[nodeID])
-		})
+		wg.Add(1)
+		go func(id string) {
+			defer wg.Done()
+			if err := fn(ctx, dga.nodes[id]); err != nil {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				errMu.Unlock()
+			}
+		}(nodeID)
 	}
 
 	// 等待所有起始节点完成
-	if err := g.Wait(); err != nil {
-		return err
+	wg.Wait()
+	if firstErr != nil {
+		return firstErr
 	}
 
 	// BFS 遍历剩余节点
@@ -155,8 +164,10 @@ func (dga *DGAGraph) Traversal(ctx context.Context, evalCtx EvaluationContext, f
 		vertexFocus := queue[0]
 		queue = queue[1:]
 
-		// 为当前节点的所有邻居创建 errgroup
-		g, ctx := errgroup.WithContext(ctx)
+		// 为当前节点的所有邻居创建 WaitGroup
+		var wg sync.WaitGroup
+		var errMu sync.Mutex
+		var layerErr error
 
 		for _, neighbor := range dga.graph[vertexFocus] {
 			if visited[neighbor] {
@@ -188,15 +199,24 @@ func (dga *DGAGraph) Traversal(ctx context.Context, evalCtx EvaluationContext, f
 				queue = append(queue, neighbor)
 
 				// 并发执行邻居节点
-				g.Go(func() error {
-					return fn(ctx, dga.nodes[neighbor])
-				})
+				wg.Add(1)
+				go func(n string) {
+					defer wg.Done()
+					if err := fn(ctx, dga.nodes[n]); err != nil {
+						errMu.Lock()
+						if layerErr == nil {
+							layerErr = err
+						}
+						errMu.Unlock()
+					}
+				}(neighbor)
 			}
 		}
 
 		// 等待当前层的所有 goroutine 完成
-		if err := g.Wait(); err != nil {
-			return err
+		wg.Wait()
+		if layerErr != nil {
+			return layerErr
 		}
 	}
 
