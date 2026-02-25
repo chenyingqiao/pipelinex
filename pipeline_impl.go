@@ -45,6 +45,17 @@ func (dga *DGAGraph) Nodes() map[string]Node {
 	}).(map[string]Node)
 }
 
+// Edges 返回所有的边
+func (dga *DGAGraph) Edges() []Edge {
+	dga.mu.RLock()
+	defer dga.mu.RUnlock()
+	edges := make([]Edge, 0, len(dga.edges))
+	for _, edge := range dga.edges {
+		edges = append(edges, edge)
+	}
+	return edges
+}
+
 // AddVertex 向图中添加顶点（节点）
 // 检查是否存在循环；如果存在循环，则返回 ErrHasCycle
 // 否则返回 nil

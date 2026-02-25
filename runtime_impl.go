@@ -3,6 +3,7 @@ package pipelinex
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -269,6 +270,7 @@ func (r *RuntimeImpl) BuildGraph(config *PipelineConfig) Graph {
 
 // parseGraphEdges 解析图边关系
 // 使用 mermaid-check 库解析 stateDiagram-v2 语法
+// 支持从边标签中解析条件表达式，例如：A --> B: label[{eq .Param}]
 func (r *RuntimeImpl) parseGraphEdges(graph Graph, nodeMap map[string]Node, graphStr string) {
 	stateParser := parser.NewStateParser()
 	diagram, err := stateParser.Parse(graphStr)
@@ -299,11 +301,53 @@ func (r *RuntimeImpl) parseGraphEdges(graph Graph, nodeMap map[string]Node, grap
 				continue
 			}
 
-			// 添加边关系
-			edge := NewDGAEdge(srcNode, destNode)
+			// 从 Label 中提取条件表达式
+			expression := r.extractExpression(transition.Label)
+
+			// 添加边关系（有条件表达式则创建条件边）
+			var edge Edge
+			if expression != "" {
+				edge = NewConditionalEdge(srcNode, destNode, expression)
+			} else {
+				edge = NewDGAEdge(srcNode, destNode)
+			}
 			_ = graph.AddEdge(edge)
 		}
 	}
+}
+
+// ExtractExpression 从边标签中提取条件表达式（公共函数供测试使用）
+// 格式示例："label[{eq .Param}]" -> "{eq .Param}"
+// 提取 [] 中的所有内容
+func ExtractExpression(label string) string {
+	if label == "" {
+		return ""
+	}
+
+	// 查找左括号 [
+	startIdx := strings.Index(label, "[")
+	if startIdx == -1 {
+		return ""
+	}
+
+	// 查找右括号 ]
+	endIdx := strings.Index(label[startIdx:], "]")
+	if endIdx == -1 {
+		return ""
+	}
+	endIdx += startIdx
+
+	// 提取 [] 中的内容
+	if endIdx <= startIdx+1 {
+		return ""
+	}
+
+	return label[startIdx+1 : endIdx]
+}
+
+// extractExpression 从边标签中提取条件表达式（内部使用）
+func (r *RuntimeImpl) extractExpression(label string) string {
+	return ExtractExpression(label)
 }
 
 // StartBackground 启动后台处理

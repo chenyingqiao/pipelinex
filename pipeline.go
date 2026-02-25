@@ -26,6 +26,8 @@ type Graph interface {
 type GraphReader interface {
 	//Nodes
 	Nodes() map[string]Node
+	//Edges 返回所有的边
+	Edges() []Edge
 	//Traversal 遍历图结构
 	Traversal(ctx context.Context, evalCtx EvaluationContext, fn TraversalFn) error
 }

@@ -510,6 +510,152 @@ func TestParseGraphEdges_MissingNode(t *testing.T) {
 	}
 }
 
+// TestExtractExpression 测试条件表达式提取
+func TestExtractExpression(t *testing.T) {
+	tests := []struct {
+		name     string
+		label    string
+		expected string
+	}{
+		{
+			name:     "基本条件表达式",
+			label:    "去B[{eq .A}]",
+			expected: "{eq .A}",
+		},
+		{
+			name:     "带参数的条件表达式",
+			label:    "去C[{ne .B \"test\"}]",
+			expected: "{ne .B \"test\"}",
+		},
+		{
+			name:     "复杂条件表达式",
+			label:    "label[{if eq .A \"test\"}true{else}false{endif}]",
+			expected: "{if eq .A \"test\"}true{else}false{endif}",
+		},
+		{
+			name:     "空标签",
+			label:    "",
+			expected: "",
+		},
+		{
+			name:     "无括号",
+			label:    "普通标签",
+			expected: "",
+		},
+		{
+			name:     "只有左括号",
+			label:    "标签[内容",
+			expected: "",
+		},
+		{
+			name:     "只有右括号",
+			label:    "标签内容]",
+			expected: "",
+		},
+		{
+			name:     "空括号",
+			label:    "标签[]",
+			expected: "",
+		},
+		{
+			name:     "多个括号取第一个",
+			label:    "标签[expr1][expr2]",
+			expected: "expr1",
+		},
+		{
+			name:     "括号中有空格",
+			label:    "标签[ { eq .A } ]",
+			expected: " { eq .A } ",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := pipelinex.ExtractExpression(tt.label)
+			if result != tt.expected {
+				t.Errorf("ExtractExpression(%q) = %q, expected %q", tt.label, result, tt.expected)
+			}
+		})
+	}
+}
+
+// TestParseGraphEdges_ConditionalEdges 测试条件边解析
+func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"A": {},
+			"B": {},
+			"C": {},
+		},
+		Graph: `stateDiagram-v2
+    [*] --> A
+    A --> B: 去B[{eq .Param}]
+    A --> C: 去C[{ne .Param ""}]
+    B --> [*]
+    C --> [*]`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	// 验证所有节点都存在
+	nodes := graph.Nodes()
+	if len(nodes) != 3 {
+		t.Errorf("Expected 3 nodes, got %d", len(nodes))
+	}
+
+	// 获取边并验证条件
+	edges := graph.Edges()
+	if len(edges) != 2 {
+		t.Errorf("Expected 2 edges, got %d", len(edges))
+	}
+
+	// 检查边的条件表达式
+	for _, edge := range edges {
+		switch edge.Target().Id() {
+		case "B":
+			if edge.Expression() != "{eq .Param}" {
+				t.Errorf("Edge A->B expression = %q, expected %q", edge.Expression(), "{eq .Param}")
+			}
+		case "C":
+			if edge.Expression() != "{ne .Param \"\"}" {
+				t.Errorf("Edge A->C expression = %q, expected %q", edge.Expression(), "{ne .Param \"\"}")
+			}
+		}
+	}
+}
+
+// TestParseGraphEdges_UnconditionalEdges 测试无条件边解析
+func TestParseGraphEdges_UnconditionalEdges(t *testing.T) {
+	ctx := context.Background()
+	config := &pipelinex.PipelineConfig{
+		Nodes: map[string]pipelinex.NodeConfig{
+			"A": {},
+			"B": {},
+		},
+		Graph: `stateDiagram-v2
+    [*] --> A
+    A --> B: 普通边
+    B --> [*]`,
+	}
+
+	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	graph := runtime.BuildGraph(config)
+
+	// 获取边并验证无条件
+	edges := graph.Edges()
+	if len(edges) != 1 {
+		t.Errorf("Expected 1 edge, got %d", len(edges))
+	}
+
+	for _, edge := range edges {
+		if edge.Expression() != "" {
+			t.Errorf("Edge should have no expression, got %q", edge.Expression())
+		}
+	}
+}
+
 // TestParseGraphEdges_WithNotes 测试带注释的图
 func TestParseGraphEdges_WithNotes(t *testing.T) {
 	ctx := context.Background()
