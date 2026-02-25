@@ -26,4 +26,6 @@ type Runtime interface {
 	StartBackground()
 	// 设置日志推送器
 	SetPusher(pusher Pusher)
+	// 设置模板引擎
+	SetTemplateEngine(engine TemplateEngine)
 }

@@ -17,26 +17,28 @@ var _ Runtime = (*RuntimeImpl)(nil)
 
 // RuntimeImpl Runtime接口的实现
 type RuntimeImpl struct {
-	pipelines   map[string]Pipeline // 存储所有流水线
-	pipelineIds map[string]bool     // 跟踪所有使用过的流水线ID
-	mu          sync.RWMutex        // 读写锁
-	ctx         context.Context     // 上下文
-	cancel      context.CancelFunc  // 取消函数
-	doneChan    chan struct{}       // 完成通道
-	background  chan struct{}       // 后台处理完成通道
-	pusher      Pusher              // 日志推送器
+	pipelines      map[string]Pipeline // 存储所有流水线
+	pipelineIds    map[string]bool     // 跟踪所有使用过的流水线ID
+	mu             sync.RWMutex        // 读写锁
+	ctx            context.Context     // 上下文
+	cancel         context.CancelFunc  // 取消函数
+	doneChan       chan struct{}       // 完成通道
+	background     chan struct{}       // 后台处理完成通道
+	pusher         Pusher              // 日志推送器
+	templateEngine TemplateEngine      // 模板引擎
 }
 
 // NewRuntime 创建新的Runtime实例
 func NewRuntime(ctx context.Context) Runtime {
 	ctx, cancel := context.WithCancel(ctx)
 	return &RuntimeImpl{
-		pipelines:   make(map[string]Pipeline),
-		pipelineIds: make(map[string]bool),
-		ctx:         ctx,
-		cancel:      cancel,
-		doneChan:    make(chan struct{}),
-		background:  make(chan struct{}),
+		pipelines:      make(map[string]Pipeline),
+		pipelineIds:    make(map[string]bool),
+		ctx:            ctx,
+		cancel:         cancel,
+		doneChan:       make(chan struct{}),
+		background:     make(chan struct{}),
+		templateEngine: NewPongo2TemplateEngine(), // 默认引擎
 	}
 }
 
@@ -317,37 +319,45 @@ func (r *RuntimeImpl) parseGraphEdges(graph Graph, nodeMap map[string]Node, grap
 }
 
 // ExtractExpression 从边标签中提取条件表达式（公共函数供测试使用）
-// 格式示例："label[{eq .Param}]" -> "{eq .Param}"
-// 提取 [] 中的所有内容
+// 使用模板引擎的 Validate 方法验证表达式语法
+// 先检查是否包含模板标记 {{ 或 {%，再使用模板引擎验证
 func ExtractExpression(label string) string {
 	if label == "" {
 		return ""
 	}
 
-	// 查找左括号 [
-	startIdx := strings.Index(label, "[")
-	if startIdx == -1 {
+	// 检查是否包含模板表达式标记 {{ 或 {%
+	if !strings.Contains(label, "{{") && !strings.Contains(label, "{%") {
 		return ""
 	}
 
-	// 查找右括号 ]
-	endIdx := strings.Index(label[startIdx:], "]")
-	if endIdx == -1 {
-		return ""
+	// 使用模板引擎验证表达式语法
+	engine := NewPongo2TemplateEngine()
+	if err := engine.Validate(label); err == nil {
+		return label
 	}
-	endIdx += startIdx
-
-	// 提取 [] 中的内容
-	if endIdx <= startIdx+1 {
-		return ""
-	}
-
-	return label[startIdx+1 : endIdx]
+	return ""
 }
 
 // extractExpression 从边标签中提取条件表达式（内部使用）
+// 使用模板引擎的Validate方法验证label是否是有效的模板表达式
 func (r *RuntimeImpl) extractExpression(label string) string {
-	return ExtractExpression(label)
+	if label == "" {
+		return ""
+	}
+
+	// 检查是否包含模板表达式标记 {{ 或 {%
+	if !strings.Contains(label, "{{") && !strings.Contains(label, "{%") {
+		return ""
+	}
+
+	engine := r.getTemplateEngine()
+
+	// 使用模板引擎验证label是否是有效的模板表达式
+	if err := engine.Validate(label); err == nil {
+		return label
+	}
+	return ""
 }
 
 // StartBackground 启动后台处理
@@ -391,4 +401,21 @@ func (r *RuntimeImpl) SetPusher(pusher Pusher) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.pusher = pusher
+}
+
+// SetTemplateEngine 设置模板引擎
+func (r *RuntimeImpl) SetTemplateEngine(engine TemplateEngine) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.templateEngine = engine
+}
+
+// getTemplateEngine 获取当前使用的模板引擎（内部使用）
+func (r *RuntimeImpl) getTemplateEngine() TemplateEngine {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	if r.templateEngine == nil {
+		return NewPongo2TemplateEngine()
+	}
+	return r.templateEngine
 }

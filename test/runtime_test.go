@@ -519,18 +519,23 @@ func TestExtractExpression(t *testing.T) {
 	}{
 		{
 			name:     "基本条件表达式",
-			label:    "去B[{eq .A}]",
-			expected: "{eq .A}",
+			label:    "{{A == true}}",
+			expected: "{{A == true}}",
 		},
 		{
 			name:     "带参数的条件表达式",
-			label:    "去C[{ne .B \"test\"}]",
-			expected: "{ne .B \"test\"}",
+			label:    "{{B != 'test'}}",
+			expected: "{{B != 'test'}}",
 		},
 		{
 			name:     "复杂条件表达式",
-			label:    "label[{if eq .A \"test\"}true{else}false{endif}]",
-			expected: "{if eq .A \"test\"}true{else}false{endif}",
+			label:    "{% if A == 'test' and B == 'ok' %}true{% endif %}",
+			expected: "{% if A == 'test' and B == 'ok' %}true{% endif %}",
+		},
+		{
+			name:     "带空格的表达式",
+			label:    "{{ A == '' }}",
+			expected: "{{ A == '' }}",
 		},
 		{
 			name:     "空标签",
@@ -538,34 +543,19 @@ func TestExtractExpression(t *testing.T) {
 			expected: "",
 		},
 		{
-			name:     "无括号",
+			name:     "普通标签无表达式",
 			label:    "普通标签",
 			expected: "",
 		},
 		{
-			name:     "只有左括号",
-			label:    "标签[内容",
+			name:     "只有左标记",
+			label:    "{{ A == true",
 			expected: "",
 		},
 		{
-			name:     "只有右括号",
-			label:    "标签内容]",
+			name:     "只有右标记",
+			label:    "A == true }}",
 			expected: "",
-		},
-		{
-			name:     "空括号",
-			label:    "标签[]",
-			expected: "",
-		},
-		{
-			name:     "多个括号取第一个",
-			label:    "标签[expr1][expr2]",
-			expected: "expr1",
-		},
-		{
-			name:     "括号中有空格",
-			label:    "标签[ { eq .A } ]",
-			expected: " { eq .A } ",
 		},
 	}
 
@@ -590,8 +580,8 @@ func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
 		},
 		Graph: `stateDiagram-v2
     [*] --> A
-    A --> B: 去B[{eq .Param}]
-    A --> C: 去C[{ne .Param ""}]
+    A --> B: {{A == "test"}}
+    A --> C: {% if B %}true{% endif %}
     B --> [*]
     C --> [*]`,
 	}
@@ -615,12 +605,12 @@ func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
 	for _, edge := range edges {
 		switch edge.Target().Id() {
 		case "B":
-			if edge.Expression() != "{eq .Param}" {
-				t.Errorf("Edge A->B expression = %q, expected %q", edge.Expression(), "{eq .Param}")
+			if edge.Expression() != "{{A == \"test\"}}" {
+				t.Errorf("Edge A->B expression = %q, expected %q", edge.Expression(), "{{A == \"test\"}}")
 			}
 		case "C":
-			if edge.Expression() != "{ne .Param \"\"}" {
-				t.Errorf("Edge A->C expression = %q, expected %q", edge.Expression(), "{ne .Param \"\"}")
+			if edge.Expression() != "{% if B %}true{% endif %}" {
+				t.Errorf("Edge A->C expression = %q, expected %q", edge.Expression(), "{% if B %}true{% endif %}")
 			}
 		}
 	}
