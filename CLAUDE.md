@@ -22,7 +22,7 @@ go test ./test/         # Run all tests
 go test ./test/ -v      # Run tests with verbose output
 ```
 
-**Note**: There's currently a compilation error in the test file (`test/pipeline_test.go:76`) where a variable `visited` is declared but not used. This needs to be fixed before running tests.
+**Note**: All tests should pass. Run `go build ./...` before testing to ensure no compilation errors.
 
 ### Code Quality
 ```bash
@@ -38,6 +38,11 @@ go vet ./...            # Run static analysis
 2. **DAG Graph Implementation** (`pipeline_impl.go`): Manages task dependencies and traversal
 3. **Node System** (`node.go`, `node_impl.go`): Individual task management with state tracking
 4. **Executor Pattern** (`executor.go`): Pluggable backend execution system
+5. **Runtime** (`runtime.go`, `runtime_impl.go`): Pipeline execution runtime with process safety
+6. **Edge System** (`edge.go`, `edge_impl.go`): DAG edges with conditional expression support
+7. **Template Engine** (`templete.go`, `templete_impl.go`): Template rendering for dynamic configuration
+8. **Metadata Store** (`metadata.go`, `metadata_impl.go`): Process-safe metadata management
+9. **Configuration** (`config.go`): Pipeline configuration structures and parsing
 
 ### Key Architecture Patterns
 
@@ -45,6 +50,9 @@ go vet ./...            # Run static analysis
 - **Executor Pattern**: Different execution backends (Function, Docker, K8s, SSH, Local)
 - **Event-driven**: Pipeline and node lifecycle events for monitoring
 - **Concurrent Execution**: Independent tasks run in parallel using goroutines
+- **Conditional Edges**: Edges support conditional expressions for dynamic execution paths
+- **Template Engine**: Support for template rendering in configuration
+- **Metadata Management**: Process-safe metadata storage and retrieval during execution
 
 ### Directory Structure
 
@@ -52,20 +60,65 @@ go vet ./...            # Run static analysis
 - `/executor/` - Execution backend implementations
   - `/kubenetes/` - Fully implemented Kubernetes executor
   - `/docker/` - Placeholder for Docker executor
+  - `/ssh/` - Placeholder for SSH executor
+  - `/local/` - Placeholder for Local executor
 - `/test/` - Test suite
+- `/doc/` - Documentation files
+  - `config.md` - Configuration detailed documentation
+  - `templete.md` - Template engine documentation
 
 ### Configuration
 
 Pipeline configuration uses YAML format with the following structure:
 ```yaml
-Param:     # Pipeline parameters
-Graph: |   # DAG definition (e.g., "Merge->Build\nBuild->Deploy")
-Nodes:     # Node definitions with execution details
+Version: "1.0"           # Configuration version
+Name: my-pipeline        # Pipeline name
+
+Metadate:                # Metadata configuration
+  type: in-config        # Metadata store type (in-config, redis, http)
+  data:                  # Initial metadata key-value pairs
+    key1: value1
+
+AI:                      # AI-related configuration
+  intent: "描述Pipeline意图"
+  constraints:           # Key constraints
+    - "约束1"
+  template: "template-id"
+
+Param:                   # Pipeline parameters
+  key: value
+
+Executors:               # Global executor definitions
+  local:
+    type: local
+    config: {}
+  docker:
+    type: docker
+    config: {}
+
+Logging:                 # Log pushing configuration
+  endpoint: http://log-center/api/v1/logs
+  headers: {}
+  timeout: 5s
+
+Graph: |                 # DAG definition (Mermaid stateDiagram-v2 format)
+  stateDiagram-v2
+    [*] --> Node1
+    Node1 --> Node2
+
+Status:                  # Node runtime status
+  Node1: Finished
+
+Nodes:                   # Node definitions with execution details
   NodeName:
-    Image: container-image
-    Config: { key: value }
-    Cmd: command-to-run
+    executor: local      # Reference to global executor
+    image: optional-image
+    steps:               # Multi-step execution
+      - name: step1
+        run: command
 ```
+
+See `config.example.yaml` for a complete example.
 
 ## Current Implementation Status
 
@@ -75,21 +128,26 @@ Nodes:     # Node definitions with execution details
 - ✅ Kubernetes executor (fully functional)
 - ✅ Node state management and event system
 - ✅ Cycle detection and graph validation
+- ✅ Conditional edges with expression evaluation
+- ✅ Template engine for dynamic configuration
+- ✅ Metadata store interface and implementations
+- ✅ Pipeline Runtime with process safety
+- ✅ Multi-step node execution
+- ✅ Graph text visualization
+- ✅ Log pushing interface
 
 **Planned but not implemented**:
 - 🔄 Function executor
 - 🔄 Docker executor
 - 🔄 SSH executor
 - 🔄 Local executor
-- 🔄 Status store interface
 
 ## Development Notes
 
 - This is a library, not an executable application (no main.go)
 - Uses Go 1.23.0 with heavy Kubernetes integration
-- Test compilation currently fails due to unused variable in `test/pipeline_test.go:76`
 - The project follows clean architecture with good separation of concerns
-- Current development is on the `f-20250430-pipeline-run` feature branch
+- Main development branch is `master`
 
 ## Working with the Codebase
 
@@ -99,3 +157,6 @@ When making changes:
 3. Follow the event-driven pattern for pipeline monitoring
 4. Ensure graph validation and cycle detection are maintained
 5. Run `go build ./...` frequently to catch compilation issues early
+6. For conditional logic, check `edge.go` and `eval_context.go`
+7. For runtime features, check `runtime.go` and `runtime_impl.go`
+8. For template functionality, check `templete.go` and related tests
