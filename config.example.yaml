@@ -36,15 +36,23 @@ Executors:
     config:
       shell: bash
       workdir: /tmp/pipeline
-  
+
   docker:
     type: docker
     config:
-      registry: ${Param.registry}
-      network: host
-      volumes:
+      registry: ${Param.registry}        # 镜像仓库地址
+      network: host                       # 网络模式 (bridge/host/none/自定义网络)
+      workdir: /app                       # 容器内工作目录
+      tty: true                           # 启用 TTY 模式（支持颜色输出和交互式程序）
+      ttyWidth: 120                       # TTY 终端宽度（默认 80）
+      ttyHeight: 40                       # TTY 终端高度（默认 24）
+      volumes:                            # 卷挂载列表
         - /var/run/docker.sock:/var/run/docker.sock
-  
+        - ${PWD}:/workspace
+      env:                                # 环境变量
+        GO_VERSION: "1.21"
+        CGO_ENABLED: "0"
+
   k8s:
     type: k8s
     config:

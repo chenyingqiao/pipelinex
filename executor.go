@@ -8,8 +8,8 @@ type Executor interface {
 	Prepare(ctx context.Context) error
 	// Destruction 销毁环境
 	Destruction(ctx context.Context) error
-	// Transfer 传输需要执行的数据，并且反回执行的结果
-	Transfer(ctx context.Context, in chan<- any, out <-chan any)
+	// Transfer 从 commandChan 接收命令执行，并将结果发送到 resultChan
+	Transfer(ctx context.Context, resultChan chan<- any, commandChan <-chan any)
 }
 
 type Adapter interface {
