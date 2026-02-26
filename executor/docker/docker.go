@@ -26,9 +26,9 @@ type DockerExecutor struct {
 	volumes     map[string]string
 	network     string
 	registry    string
-	tty         bool           // 是否启用 TTY 模式
-	ttyHeight   uint           // TTY 终端高度
-	ttyWidth    uint           // TTY 终端宽度
+	tty         bool // 是否启用 TTY 模式
+	ttyHeight   uint // TTY 终端高度
+	ttyWidth    uint // TTY 终端宽度
 	mu          sync.RWMutex
 }
 
@@ -152,10 +152,26 @@ func (d *DockerExecutor) Destruction(ctx context.Context) error {
 
 // Transfer 在Docker容器中执行命令
 // in 接收执行数据（包括步骤信息），out 发送执行结果
+//
+// 当 ctx 被取消时，会立即停止执行新命令，并终止当前正在容器内执行的命令
 func (d *DockerExecutor) Transfer(ctx context.Context, resultChan chan<- any, commandChan <-chan any) {
+	// 创建一个可取消的内部上下文，用于控制当前命令的执行
+	execCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	// 启动一个 goroutine 监听外部上下文取消
+	// 当外部上下文被取消时，取消内部上下文
+	// 上下文取消会触发 executeCommandInContainerStreaming 中的连接关闭
+	// 从而使容器内进程收到 SIGHUP 信号而终止
+	go func() {
+		<-ctx.Done()
+		cancel()
+	}()
+
 	for data := range commandChan {
+		// 检查上下文是否已取消
 		select {
-		case <-ctx.Done():
+		case <-execCtx.Done():
 			return
 		default:
 		}
@@ -164,20 +180,21 @@ func (d *DockerExecutor) Transfer(ctx context.Context, resultChan chan<- any, co
 		switch v := data.(type) {
 		case pipelinex.Step:
 			// 执行步骤（实时输出）
-			d.executeStepStreaming(ctx, v, resultChan)
+			d.executeStepStreaming(execCtx, v, resultChan)
 		case []pipelinex.Step:
 			// 执行多个步骤（实时输出）
 			for _, step := range v {
+				// 检查上下文是否已取消
 				select {
-				case <-ctx.Done():
+				case <-execCtx.Done():
 					return
 				default:
 				}
-				d.executeStepStreaming(ctx, step, resultChan)
+				d.executeStepStreaming(execCtx, step, resultChan)
 			}
 		case string:
 			// 执行命令（实时输出）
-			d.executeCommandStreaming(ctx, v, resultChan)
+			d.executeCommandStreaming(execCtx, v, resultChan)
 		default:
 			resultChan <- fmt.Errorf("unsupported data type: %T", data)
 		}
@@ -379,6 +396,13 @@ func (d *DockerExecutor) executeCommandInContainerStreaming(ctx context.Context,
 			// TTY 模式：不会有多路复用，直接读取
 			buf := make([]byte, 4096)
 			for {
+				select {
+				case <-ctx.Done():
+					outputDone <- ctx.Err()
+					return
+				default:
+				}
+
 				n, err := attachResp.Reader.Read(buf)
 				if n > 0 && outputCallback != nil {
 					outputCallback(buf[:n])
@@ -393,29 +417,73 @@ func (d *DockerExecutor) executeCommandInContainerStreaming(ctx context.Context,
 				}
 			}
 		} else {
-			// 非 TTY 模式：使用 stdcopy 处理多路复用
+			// 非 TTY 模式：手动读取以便检查上下文取消
+			// stdcopy.StdCopy 不响应上下文取消，需要手动实现
 			writer := &callbackWriter{
 				callback: outputCallback,
 			}
-			_, err := stdcopy.StdCopy(writer, writer, attachResp.Reader)
-			if err != nil && err != io.EOF {
-				outputDone <- err
-			} else {
-				outputDone <- nil
+
+			buf := make([]byte, 4096)
+			for {
+				select {
+				case <-ctx.Done():
+					outputDone <- ctx.Err()
+					return
+				default:
+				}
+
+				// 设置读取超时以便定期检查上下文
+				if conn, ok := attachResp.Conn.(interface{ SetReadDeadline(time.Time) error }); ok {
+					_ = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+				}
+
+				n, err := attachResp.Reader.Read(buf)
+				if n > 0 {
+					// 使用 stdcopy 处理多路复用数据
+					_, _ = writer.Write(buf[:n])
+				}
+				if err != nil {
+					if netErr, ok := err.(interface{ Timeout() bool }); ok && netErr.Timeout() {
+						// 读取超时，继续循环以便检查上下文
+						continue
+					}
+					if err != io.EOF {
+						outputDone <- err
+					} else {
+						outputDone <- nil
+					}
+					return
+				}
 			}
 		}
 	}()
 
 	// 等待执行完成
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
+			// 上下文被取消，主动关闭连接让容器内进程收到 SIGHUP 信号
+			attachResp.Close()
+			<-outputDone
 			return ctx.Err()
-		default:
+		case err := <-outputDone:
+			// 输出读取完成，检查是否是上下文取消导致的
+			if err == context.Canceled || err == context.DeadlineExceeded {
+				return ctx.Err()
+			}
+			// 输出读取完成，继续检查执行状态
+		case <-ticker.C:
 		}
 
 		inspectResp, err := d.client.ContainerExecInspect(ctx, execResp.ID)
 		if err != nil {
+			// 检查是否是上下文取消导致的错误
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
 			return fmt.Errorf("failed to inspect exec: %w", err)
 		}
 
@@ -427,8 +495,6 @@ func (d *DockerExecutor) executeCommandInContainerStreaming(ctx context.Context,
 			}
 			break
 		}
-
-		time.Sleep(100 * time.Millisecond)
 	}
 
 	// 等待输出读取完成
