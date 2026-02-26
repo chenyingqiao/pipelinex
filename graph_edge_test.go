@@ -1,21 +1,19 @@
-package test
+package pipelinex
 
 import (
 	"context"
 	"testing"
-
-	"github.com/chenyingqiao/pipelinex"
 )
 
 func TestDGAGraph_AddEdge_Success(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
 
 	graph.AddVertex(node1)
 	graph.AddVertex(node2)
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 	err := graph.AddEdge(edge)
 
 	if err != nil {
@@ -24,14 +22,14 @@ func TestDGAGraph_AddEdge_Success(t *testing.T) {
 }
 
 func TestDGAGraph_AddEdge_SourceNotFound(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
 
 	// 只添加目标节点，不添加源节点
 	graph.AddVertex(node2)
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 	err := graph.AddEdge(edge)
 
 	if err == nil {
@@ -40,14 +38,14 @@ func TestDGAGraph_AddEdge_SourceNotFound(t *testing.T) {
 }
 
 func TestDGAGraph_AddEdge_TargetNotFound(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
 
 	// 只添加源节点，不添加目标节点
 	graph.AddVertex(node1)
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 	err := graph.AddEdge(edge)
 
 	if err == nil {
@@ -56,61 +54,61 @@ func TestDGAGraph_AddEdge_TargetNotFound(t *testing.T) {
 }
 
 func TestDGAGraph_AddEdge_Cycle(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
+	node3 := NewDGANode("c", "UNKNOWN")
 
 	graph.AddVertex(node1)
 	graph.AddVertex(node2)
 	graph.AddVertex(node3)
 
 	// 添加边 a -> b -> c
-	edge1 := pipelinex.NewDGAEdge(node1, node2)
-	edge2 := pipelinex.NewDGAEdge(node2, node3)
+	edge1 := NewDGAEdge(node1, node2)
+	edge2 := NewDGAEdge(node2, node3)
 	graph.AddEdge(edge1)
 	graph.AddEdge(edge2)
 
 	// 添加边 c -> a，这会形成循环
-	edge3 := pipelinex.NewDGAEdge(node3, node1)
+	edge3 := NewDGAEdge(node3, node1)
 	err := graph.AddEdge(edge3)
 
 	if err == nil {
 		t.Error("Expected error for cycle detection")
 	}
 
-	if err != pipelinex.ErrHasCycle {
+	if err != ErrHasCycle {
 		t.Errorf("Expected ErrHasCycle, got: %v", err)
 	}
 }
 
 func TestDGAGraph_AddEdge_MultipleEdges(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
+	node3 := NewDGANode("c", "UNKNOWN")
 
 	graph.AddVertex(node1)
 	graph.AddVertex(node2)
 	graph.AddVertex(node3)
 
 	// a -> b
-	edge1 := pipelinex.NewDGAEdge(node1, node2)
+	edge1 := NewDGAEdge(node1, node2)
 	if err := graph.AddEdge(edge1); err != nil {
 		t.Errorf("Failed to add edge a->b: %v", err)
 	}
 
 	// a -> c
-	edge2 := pipelinex.NewDGAEdge(node1, node3)
+	edge2 := NewDGAEdge(node1, node3)
 	if err := graph.AddEdge(edge2); err != nil {
 		t.Errorf("Failed to add edge a->c: %v", err)
 	}
 
 	// 验证遍历
-	evalCtx := pipelinex.NewEvaluationContext()
+	evalCtx := NewEvaluationContext()
 	visited := []string{}
 
-	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		visited = append(visited, node.Id())
 		return nil
 	}); err != nil {
@@ -123,47 +121,47 @@ func TestDGAGraph_AddEdge_MultipleEdges(t *testing.T) {
 }
 
 func TestDGAGraph_AddEdge_SelfLoop(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
 
 	graph.AddVertex(node1)
 
 	// 自环 a -> a
-	edge := pipelinex.NewDGAEdge(node1, node1)
+	edge := NewDGAEdge(node1, node1)
 	err := graph.AddEdge(edge)
 
 	if err == nil {
 		t.Error("Expected error for self-loop")
 	}
 
-	if err != pipelinex.ErrHasCycle {
+	if err != ErrHasCycle {
 		t.Errorf("Expected ErrHasCycle for self-loop, got: %v", err)
 	}
 }
 
 func TestDGAGraph_Traversal_WithConditionalEdge(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "FAILED")
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "FAILED")
+	node3 := NewDGANode("c", "UNKNOWN")
 
 	graph.AddVertex(node1)
 	graph.AddVertex(node2)
 	graph.AddVertex(node3)
 
 	// a -> b (无条件)
-	edge1 := pipelinex.NewDGAEdge(node1, node2)
+	edge1 := NewDGAEdge(node1, node2)
 	graph.AddEdge(edge1)
 
 	// b -> c (条件：nodeStatus == 'SUCCESS')
-	edge2 := pipelinex.NewConditionalEdge(node2, node3, "{{ nodeStatus == 'SUCCESS' }}")
+	edge2 := NewConditionalEdge(node2, node3, "{{ nodeStatus == 'SUCCESS' }}")
 	graph.AddEdge(edge2)
 
 	// node2 状态是 FAILED，所以条件边不应该被遍历
-	evalCtx := pipelinex.NewEvaluationContext().WithNode(node2)
+	evalCtx := NewEvaluationContext().WithNode(node2)
 	visited := []string{}
 
-	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		visited = append(visited, node.Id())
 		return nil
 	}); err != nil {
@@ -177,11 +175,11 @@ func TestDGAGraph_Traversal_WithConditionalEdge(t *testing.T) {
 }
 
 func TestDGAGraph_Traversal_MultipleConditionalEdges(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
-	node4 := pipelinex.NewDGANode("d", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
+	node3 := NewDGANode("c", "UNKNOWN")
+	node4 := NewDGANode("d", "UNKNOWN")
 
 	graph.AddVertex(node1)
 	graph.AddVertex(node2)
@@ -189,21 +187,21 @@ func TestDGAGraph_Traversal_MultipleConditionalEdges(t *testing.T) {
 	graph.AddVertex(node4)
 
 	// a -> b (无条件)
-	graph.AddEdge(pipelinex.NewDGAEdge(node1, node2))
+	graph.AddEdge(NewDGAEdge(node1, node2))
 
 	// b -> c (条件：env == 'prod')
-	graph.AddEdge(pipelinex.NewConditionalEdge(node2, node3, "{{ env == 'prod' }}"))
+	graph.AddEdge(NewConditionalEdge(node2, node3, "{{ env == 'prod' }}"))
 
 	// b -> d (条件：env == 'dev')
-	graph.AddEdge(pipelinex.NewConditionalEdge(node2, node4, "{{ env == 'dev' }}"))
+	graph.AddEdge(NewConditionalEdge(node2, node4, "{{ env == 'dev' }}"))
 
 	// 测试 env=prod 场景
-	evalCtx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	evalCtx := NewEvaluationContext().WithParams(map[string]any{
 		"env": "prod",
 	})
 	visited := []string{}
 
-	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		visited = append(visited, node.Id())
 		return nil
 	}); err != nil {
@@ -217,19 +215,19 @@ func TestDGAGraph_Traversal_MultipleConditionalEdges(t *testing.T) {
 }
 
 func TestDGAGraph_Traversal_ConditionalEdgeError(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
 
 	graph.AddVertex(node1)
 	graph.AddVertex(node2)
 
 	// 使用无效的表达式语法
-	edge := pipelinex.NewConditionalEdge(node1, node2, "{{ unclosed")
+	edge := NewConditionalEdge(node1, node2, "{{ unclosed")
 	graph.AddEdge(edge)
 
-	evalCtx := pipelinex.NewEvaluationContext()
-	err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	evalCtx := NewEvaluationContext()
+	err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		return nil
 	})
 
@@ -239,10 +237,10 @@ func TestDGAGraph_Traversal_ConditionalEdgeError(t *testing.T) {
 }
 
 func TestDGAGraph_Traversal_EmptyGraph(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
+	graph := NewDGAGraph()
 
-	evalCtx := pipelinex.NewEvaluationContext()
-	err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	evalCtx := NewEvaluationContext()
+	err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		t.Error("Should not visit any node in empty graph")
 		return nil
 	})
@@ -253,15 +251,15 @@ func TestDGAGraph_Traversal_EmptyGraph(t *testing.T) {
 }
 
 func TestDGAGraph_Traversal_SingleNode(t *testing.T) {
-	graph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("solo", "RUNNING")
+	graph := NewDGAGraph()
+	node1 := NewDGANode("solo", "RUNNING")
 
 	graph.AddVertex(node1)
 
-	evalCtx := pipelinex.NewEvaluationContext()
+	evalCtx := NewEvaluationContext()
 	visited := []string{}
 
-	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := graph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		visited = append(visited, node.Id())
 		return nil
 	}); err != nil {

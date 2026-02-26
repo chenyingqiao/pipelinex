@@ -48,17 +48,17 @@ var _ pipelinex.Bridge = (*DockerBridge)(nil)
 func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) error {
 	// 应用registry配置
 	if registry, ok := getString(config, "registry"); ok {
-		executor.SetRegistry(registry)
+		executor.setRegistry(registry)
 	}
 
 	// 应用network配置
 	if network, ok := getString(config, "network"); ok {
-		executor.SetNetwork(network)
+		executor.setNetwork(network)
 	}
 
 	// 应用workdir配置
 	if workdir, ok := getString(config, "workdir"); ok {
-		executor.SetWorkdir(workdir)
+		executor.setWorkdir(workdir)
 	}
 
 	// 应用volumes配置
@@ -69,7 +69,7 @@ func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) erro
 				if err != nil {
 					return fmt.Errorf("invalid volume format %s: %w", vol, err)
 				}
-				executor.SetVolume(hostPath, containerPath)
+				executor.setVolume(hostPath, containerPath)
 			}
 		}
 		if volList, ok := volumes.([]any); ok {
@@ -79,7 +79,7 @@ func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) erro
 					if err != nil {
 						return fmt.Errorf("invalid volume format %s: %w", volStr, err)
 					}
-					executor.SetVolume(hostPath, containerPath)
+					executor.setVolume(hostPath, containerPath)
 				}
 			}
 		}
@@ -89,13 +89,13 @@ func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) erro
 	if env, ok := config["env"]; ok {
 		if envMap, ok := env.(map[string]string); ok {
 			for k, v := range envMap {
-				executor.SetEnv(k, v)
+				executor.setEnv(k, v)
 			}
 		}
 		if envMap, ok := env.(map[string]any); ok {
 			for k, v := range envMap {
 				if vStr, ok := v.(string); ok {
-					executor.SetEnv(k, vStr)
+					executor.setEnv(k, vStr)
 				}
 			}
 		}
@@ -104,20 +104,20 @@ func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) erro
 	// 应用tty配置
 	if tty, ok := config["tty"]; ok {
 		if ttyBool, ok := tty.(bool); ok {
-			executor.SetTTY(ttyBool)
+			executor.setTTY(ttyBool)
 		}
 	}
 
 	// 应用ttyWidth配置
 	if ttyWidth, ok := config["ttyWidth"]; ok {
 		if width, ok := ttyWidth.(int); ok {
-			executor.SetTTYSize(uint(width), 0) // 只设置宽度，高度使用默认
+			executor.setTTYSize(uint(width), 0) // 只设置宽度，高度使用默认
 		}
 		if width, ok := ttyWidth.(int64); ok {
-			executor.SetTTYSize(uint(width), 0)
+			executor.setTTYSize(uint(width), 0)
 		}
 		if width, ok := ttyWidth.(float64); ok {
-			executor.SetTTYSize(uint(width), 0)
+			executor.setTTYSize(uint(width), 0)
 		}
 	}
 
@@ -137,13 +137,13 @@ func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) erro
 		}
 
 		if height, ok := ttyHeight.(int); ok {
-			executor.SetTTYSize(currentWidth, uint(height))
+			executor.setTTYSize(currentWidth, uint(height))
 		}
 		if height, ok := ttyHeight.(int64); ok {
-			executor.SetTTYSize(currentWidth, uint(height))
+			executor.setTTYSize(currentWidth, uint(height))
 		}
 		if height, ok := ttyHeight.(float64); ok {
-			executor.SetTTYSize(currentWidth, uint(height))
+			executor.setTTYSize(currentWidth, uint(height))
 		}
 	}
 

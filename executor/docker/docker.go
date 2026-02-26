@@ -527,8 +527,8 @@ func (d *DockerExecutor) buildMounts() []mount.Mount {
 	return mounts
 }
 
-// CopyToContainer 复制文件到容器
-func (d *DockerExecutor) CopyToContainer(ctx context.Context, localPath, containerPath string) error {
+// copyToContainer 复制文件到容器
+func (d *DockerExecutor) copyToContainer(ctx context.Context, localPath, containerPath string) error {
 	d.mu.RLock()
 	containerID := d.containerID
 	d.mu.RUnlock()
@@ -541,8 +541,8 @@ func (d *DockerExecutor) CopyToContainer(ctx context.Context, localPath, contain
 	return fmt.Errorf("not implemented")
 }
 
-// CopyFromContainer 从容器复制文件
-func (d *DockerExecutor) CopyFromContainer(ctx context.Context, containerPath, localPath string) error {
+// copyFromContainer 从容器复制文件
+func (d *DockerExecutor) copyFromContainer(ctx context.Context, containerPath, localPath string) error {
 	d.mu.RLock()
 	containerID := d.containerID
 	d.mu.RUnlock()
@@ -555,57 +555,57 @@ func (d *DockerExecutor) CopyFromContainer(ctx context.Context, containerPath, l
 	return fmt.Errorf("not implemented")
 }
 
-// SetImage 设置镜像
-func (d *DockerExecutor) SetImage(image string) {
+// setImage 设置镜像
+func (d *DockerExecutor) setImage(image string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.image = image
 }
 
-// SetWorkdir 设置工作目录
-func (d *DockerExecutor) SetWorkdir(workdir string) {
+// setWorkdir 设置工作目录
+func (d *DockerExecutor) setWorkdir(workdir string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.workdir = workdir
 }
 
-// SetEnv 设置环境变量
-func (d *DockerExecutor) SetEnv(key, value string) {
+// setEnv 设置环境变量
+func (d *DockerExecutor) setEnv(key, value string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.env[key] = value
 }
 
-// SetVolume 设置卷挂载
-func (d *DockerExecutor) SetVolume(hostPath, containerPath string) {
+// setVolume 设置卷挂载
+func (d *DockerExecutor) setVolume(hostPath, containerPath string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.volumes[hostPath] = containerPath
 }
 
-// SetNetwork 设置网络
-func (d *DockerExecutor) SetNetwork(network string) {
+// setNetwork 设置网络
+func (d *DockerExecutor) setNetwork(network string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.network = network
 }
 
-// SetRegistry 设置镜像仓库
-func (d *DockerExecutor) SetRegistry(registry string) {
+// setRegistry 设置镜像仓库
+func (d *DockerExecutor) setRegistry(registry string) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.registry = registry
 }
 
-// SetTTY 设置是否启用 TTY 模式
-func (d *DockerExecutor) SetTTY(enabled bool) {
+// setTTY 设置是否启用 TTY 模式
+func (d *DockerExecutor) setTTY(enabled bool) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.tty = enabled
 }
 
-// SetTTYSize 设置 TTY 终端尺寸
-func (d *DockerExecutor) SetTTYSize(width, height uint) {
+// setTTYSize 设置 TTY 终端尺寸
+func (d *DockerExecutor) setTTYSize(width, height uint) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	d.ttyWidth = width

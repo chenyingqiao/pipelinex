@@ -1,4 +1,4 @@
-package test
+package pipelinex
 
 import (
 	"context"
@@ -6,14 +6,12 @@ import (
 	"reflect"
 	"testing"
 	"time"
-
-	"github.com/chenyingqiao/pipelinex"
 )
 
 // TestNewRuntime tests creating a new Runtime instance
 func TestNewRuntime(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	if runtime == nil {
 		t.Fatal("NewRuntime should not return nil")
@@ -28,7 +26,7 @@ func TestNewRuntime(t *testing.T) {
 // TestRuntimeImpl_Get tests getting a pipeline
 func TestRuntimeImpl_Get(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Test getting non-existent pipeline
 	_, err := runtime.Get("non-existent")
@@ -40,7 +38,7 @@ func TestRuntimeImpl_Get(t *testing.T) {
 // TestRuntimeImpl_RunSync tests synchronous pipeline execution
 func TestRuntimeImpl_RunSync(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Prepare test configuration
 	config := `
@@ -83,7 +81,7 @@ Nodes:
 // TestRuntimeImpl_RunSync_InvalidConfig tests synchronous execution with invalid config
 func TestRuntimeImpl_RunSync_InvalidConfig(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Prepare invalid configuration
 	invalidConfig := `
@@ -101,7 +99,7 @@ invalid: yaml: content
 // TestRuntimeImpl_RunSync_DuplicateID tests synchronous execution with duplicate ID
 func TestRuntimeImpl_RunSync_DuplicateID(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Prepare test configuration
 	config := `
@@ -129,7 +127,7 @@ Nodes:
 // TestRuntimeImpl_RunAsync tests asynchronous pipeline execution
 func TestRuntimeImpl_RunAsync(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Prepare test configuration
 	config := `
@@ -176,7 +174,7 @@ Nodes:
 // TestRuntimeImpl_Cancel tests pipeline cancellation
 func TestRuntimeImpl_Cancel(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Prepare test configuration
 	config := `
@@ -215,7 +213,7 @@ Nodes:
 // TestRuntimeImpl_Cancel_NonExistent tests cancelling non-existent pipeline
 func TestRuntimeImpl_Cancel_NonExistent(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	err := runtime.Cancel(ctx, "non-existent-pipeline")
 	if err == nil {
@@ -226,7 +224,7 @@ func TestRuntimeImpl_Cancel_NonExistent(t *testing.T) {
 // TestRuntimeImpl_Rm tests pipeline removal
 func TestRuntimeImpl_Rm(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Remove pipeline (this should not panic even if pipeline doesn't exist)
 	runtime.Rm("test-rm-pipeline")
@@ -235,7 +233,7 @@ func TestRuntimeImpl_Rm(t *testing.T) {
 // TestRuntimeImpl_Done tests Done channel
 func TestRuntimeImpl_Done(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	doneChan := runtime.Done()
 	if doneChan == nil {
@@ -264,7 +262,7 @@ func TestRuntimeImpl_Done(t *testing.T) {
 // TestRuntimeImpl_Notify tests notification functionality
 func TestRuntimeImpl_Notify(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Test string notification
 	err := runtime.Notify("test message")
@@ -291,7 +289,7 @@ func TestRuntimeImpl_Notify(t *testing.T) {
 // TestRuntimeImpl_Ctx tests context
 func TestRuntimeImpl_Ctx(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	retrievedCtx := runtime.Ctx()
 	if retrievedCtx == nil {
@@ -307,7 +305,7 @@ func TestRuntimeImpl_Ctx(t *testing.T) {
 // TestRuntimeImpl_StopBackground tests stopping background processing
 func TestRuntimeImpl_StopBackground(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Start background processing
 	runtime.StartBackground()
@@ -330,7 +328,7 @@ func TestRuntimeImpl_StopBackground(t *testing.T) {
 // TestRuntimeImpl_ConcurrentAccess tests concurrent access
 func TestRuntimeImpl_ConcurrentAccess(t *testing.T) {
 	ctx := context.Background()
-	runtime := pipelinex.NewRuntime(ctx)
+	runtime := NewRuntime(ctx)
 
 	// Prepare test configuration
 	config := `
@@ -364,25 +362,25 @@ Nodes:
 // TestListener test listener implementation
 type TestListener struct{}
 
-func (l *TestListener) Handle(p pipelinex.Pipeline, event pipelinex.Event) {
+func (l *TestListener) Handle(p Pipeline, event Event) {
 	// Simple implementation that does nothing for testing
 }
 
-func (l *TestListener) Events() []pipelinex.Event {
-	return []pipelinex.Event{
-		pipelinex.PipelineInit,
-		pipelinex.PipelineStart,
-		pipelinex.PipelineFinish,
-		pipelinex.PipelineNodeStart,
-		pipelinex.PipelineNodeFinish,
+func (l *TestListener) Events() []Event {
+	return []Event{
+		PipelineInit,
+		PipelineStart,
+		PipelineFinish,
+		PipelineNodeStart,
+		PipelineNodeFinish,
 	}
 }
 
 // TestParseGraphEdges_BasicStateDiagram 测试基本状态图解析
 func TestParseGraphEdges_BasicStateDiagram(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"Merge":  {},
 			"Build":  {},
 			"Deploy": {},
@@ -395,7 +393,7 @@ func TestParseGraphEdges_BasicStateDiagram(t *testing.T) {
     Deploy --> [*]`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	// 验证所有节点都存在
@@ -416,8 +414,8 @@ func TestParseGraphEdges_BasicStateDiagram(t *testing.T) {
 // TestParseGraphEdges_ComplexDiagram 测试复杂状态图（并行路径）
 func TestParseGraphEdges_ComplexDiagram(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"Checkout": {},
 			"Lint":     {},
 			"Test":     {},
@@ -434,7 +432,7 @@ func TestParseGraphEdges_ComplexDiagram(t *testing.T) {
     Deploy --> [*]`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	nodes := graph.Nodes()
@@ -446,15 +444,15 @@ func TestParseGraphEdges_ComplexDiagram(t *testing.T) {
 // TestParseGraphEdges_EmptyGraph 测试空图
 func TestParseGraphEdges_EmptyGraph(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"Node1": {},
 			"Node2": {},
 		},
 		Graph: "",
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	nodes := graph.Nodes()
@@ -466,15 +464,15 @@ func TestParseGraphEdges_EmptyGraph(t *testing.T) {
 // TestParseGraphEdges_InvalidSyntax 测试无效语法
 func TestParseGraphEdges_InvalidSyntax(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"Node1": {},
 			"Node2": {},
 		},
 		Graph: `invalid diagram syntax here`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	// 即使图语法无效，也应该创建节点
@@ -487,8 +485,8 @@ func TestParseGraphEdges_InvalidSyntax(t *testing.T) {
 // TestParseGraphEdges_MissingNode 测试配置中缺失节点
 func TestParseGraphEdges_MissingNode(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"A": {},
 			// B 缺失
 			"C": {},
@@ -500,7 +498,7 @@ func TestParseGraphEdges_MissingNode(t *testing.T) {
     C --> [*]`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	// 即使 B 节点缺失在配置中，也应该创建存在的节点
@@ -561,7 +559,7 @@ func TestExtractExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := pipelinex.ExtractExpression(tt.label)
+			result := ExtractExpression(tt.label)
 			if result != tt.expected {
 				t.Errorf("ExtractExpression(%q) = %q, expected %q", tt.label, result, tt.expected)
 			}
@@ -572,8 +570,8 @@ func TestExtractExpression(t *testing.T) {
 // TestParseGraphEdges_ConditionalEdges 测试条件边解析
 func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"A": {},
 			"B": {},
 			"C": {},
@@ -586,7 +584,7 @@ func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
     C --> [*]`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	// 验证所有节点都存在
@@ -619,8 +617,8 @@ func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
 // TestParseGraphEdges_UnconditionalEdges 测试无条件边解析
 func TestParseGraphEdges_UnconditionalEdges(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"A": {},
 			"B": {},
 		},
@@ -630,7 +628,7 @@ func TestParseGraphEdges_UnconditionalEdges(t *testing.T) {
     B --> [*]`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	// 获取边并验证无条件
@@ -649,8 +647,8 @@ func TestParseGraphEdges_UnconditionalEdges(t *testing.T) {
 // TestParseGraphEdges_WithNotes 测试带注释的图
 func TestParseGraphEdges_WithNotes(t *testing.T) {
 	ctx := context.Background()
-	config := &pipelinex.PipelineConfig{
-		Nodes: map[string]pipelinex.NodeConfig{
+	config := &PipelineConfig{
+		Nodes: map[string]NodeConfig{
 			"Start":   {},
 			"Process": {},
 			"End":     {},
@@ -666,7 +664,7 @@ func TestParseGraphEdges_WithNotes(t *testing.T) {
     End --> [*]`,
 	}
 
-	runtime := pipelinex.NewRuntime(ctx).(*pipelinex.RuntimeImpl)
+	runtime := NewRuntime(ctx).(*RuntimeImpl)
 	graph := runtime.BuildGraph(config)
 
 	nodes := graph.Nodes()

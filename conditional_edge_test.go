@@ -1,39 +1,37 @@
-package test
+package pipelinex
 
 import (
 	"context"
 	"testing"
-
-	"github.com/chenyingqiao/pipelinex"
 )
 
 func TestConditionalEdge_Basic(t *testing.T) {
-	dgaGraph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
+	dgaGraph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
+	node3 := NewDGANode("c", "UNKNOWN")
 
 	dgaGraph.AddVertex(node1)
 	dgaGraph.AddVertex(node2)
 	dgaGraph.AddVertex(node3)
 
 	// 无条件边 a -> b
-	edge1 := pipelinex.NewDGAEdge(node1, node2)
+	edge1 := NewDGAEdge(node1, node2)
 	if err := dgaGraph.AddEdge(edge1); err != nil {
 		t.Fatalf("AddEdge(a->b): %v", err)
 	}
 
 	// 条件边 b -> c, 条件是 nodeStatus == 'SUCCESS'
-	edge2 := pipelinex.NewConditionalEdge(node2, node3, "{{ nodeStatus == 'SUCCESS' }}")
+	edge2 := NewConditionalEdge(node2, node3, "{{ nodeStatus == 'SUCCESS' }}")
 	if err := dgaGraph.AddEdge(edge2); err != nil {
 		t.Fatalf("AddEdge(b->c): %v", err)
 	}
 
 	// 测试场景1: node2状态不是SUCCESS，条件边不应该被遍历
-	evalCtx := pipelinex.NewEvaluationContext().WithNode(node2)
+	evalCtx := NewEvaluationContext().WithNode(node2)
 	visited := []string{}
 
-	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited = append(visited, node.Id())
 		return nil
@@ -48,32 +46,32 @@ func TestConditionalEdge_Basic(t *testing.T) {
 }
 
 func TestConditionalEdge_WithTrueCondition(t *testing.T) {
-	dgaGraph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "SUCCESS") // 状态为 SUCCESS
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
+	dgaGraph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "SUCCESS") // 状态为 SUCCESS
+	node3 := NewDGANode("c", "UNKNOWN")
 
 	dgaGraph.AddVertex(node1)
 	dgaGraph.AddVertex(node2)
 	dgaGraph.AddVertex(node3)
 
 	// 无条件边 a -> b
-	edge1 := pipelinex.NewDGAEdge(node1, node2)
+	edge1 := NewDGAEdge(node1, node2)
 	if err := dgaGraph.AddEdge(edge1); err != nil {
 		t.Fatalf("AddEdge(a->b): %v", err)
 	}
 
 	// 条件边 b -> c, 条件是 nodeStatus == 'SUCCESS'
-	edge2 := pipelinex.NewConditionalEdge(node2, node3, "{{ nodeStatus == 'SUCCESS' }}")
+	edge2 := NewConditionalEdge(node2, node3, "{{ nodeStatus == 'SUCCESS' }}")
 	if err := dgaGraph.AddEdge(edge2); err != nil {
 		t.Fatalf("AddEdge(b->c): %v", err)
 	}
 
 	// 测试: node2状态是SUCCESS，条件边应该被遍历
-	evalCtx := pipelinex.NewEvaluationContext().WithNode(node2)
+	evalCtx := NewEvaluationContext().WithNode(node2)
 	visited := []string{}
 
-	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited = append(visited, node.Id())
 		return nil
@@ -88,11 +86,11 @@ func TestConditionalEdge_WithTrueCondition(t *testing.T) {
 }
 
 func TestConditionalEdge_WithParams(t *testing.T) {
-	dgaGraph := pipelinex.NewDGAGraph()
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
-	node3 := pipelinex.NewDGANode("c", "UNKNOWN")
-	node4 := pipelinex.NewDGANode("d", "UNKNOWN")
+	dgaGraph := NewDGAGraph()
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
+	node3 := NewDGANode("c", "UNKNOWN")
+	node4 := NewDGANode("d", "UNKNOWN")
 
 	dgaGraph.AddVertex(node1)
 	dgaGraph.AddVertex(node2)
@@ -100,30 +98,30 @@ func TestConditionalEdge_WithParams(t *testing.T) {
 	dgaGraph.AddVertex(node4)
 
 	// 无条件边 a -> b
-	edge1 := pipelinex.NewDGAEdge(node1, node2)
+	edge1 := NewDGAEdge(node1, node2)
 	if err := dgaGraph.AddEdge(edge1); err != nil {
 		t.Fatalf("AddEdge(a->b): %v", err)
 	}
 
 	// 条件边 b -> c, 条件是 branch == 'main'
-	edge2 := pipelinex.NewConditionalEdge(node2, node3, "{{ branch == 'main' }}")
+	edge2 := NewConditionalEdge(node2, node3, "{{ branch == 'main' }}")
 	if err := dgaGraph.AddEdge(edge2); err != nil {
 		t.Fatalf("AddEdge(b->c): %v", err)
 	}
 
 	// 条件边 b -> d, 条件是 branch == 'develop'
-	edge3 := pipelinex.NewConditionalEdge(node2, node4, "{{ branch == 'develop' }}")
+	edge3 := NewConditionalEdge(node2, node4, "{{ branch == 'develop' }}")
 	if err := dgaGraph.AddEdge(edge3); err != nil {
 		t.Fatalf("AddEdge(b->d): %v", err)
 	}
 
 	// 测试场景1: branch = main，应该走 b -> c
-	evalCtx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	evalCtx := NewEvaluationContext().WithParams(map[string]any{
 		"branch": "main",
 	})
 	visited := []string{}
 
-	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node pipelinex.Node) error {
+	if err := dgaGraph.Traversal(context.Background(), evalCtx, func(ctx context.Context, node Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited = append(visited, node.Id())
 		return nil
@@ -137,12 +135,12 @@ func TestConditionalEdge_WithParams(t *testing.T) {
 	}
 
 	// 测试场景2: branch = develop，应该走 b -> d
-	evalCtx2 := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	evalCtx2 := NewEvaluationContext().WithParams(map[string]any{
 		"branch": "develop",
 	})
 	visited2 := []string{}
 
-	if err := dgaGraph.Traversal(context.Background(), evalCtx2, func(ctx context.Context, node pipelinex.Node) error {
+	if err := dgaGraph.Traversal(context.Background(), evalCtx2, func(ctx context.Context, node Node) error {
 		t.Log("Visiting node:", node.Id())
 		visited2 = append(visited2, node.Id())
 		return nil
@@ -157,16 +155,16 @@ func TestConditionalEdge_WithParams(t *testing.T) {
 }
 
 func TestEdge_Evaluate(t *testing.T) {
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "SUCCESS")
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "SUCCESS")
 
 	// 测试无条件边
-	uncondEdge := pipelinex.NewDGAEdge(node1, node2)
+	uncondEdge := NewDGAEdge(node1, node2)
 	if uncondEdge.Expression() != "" {
 		t.Errorf("Expected empty expression for unconditional edge, got %s", uncondEdge.Expression())
 	}
 
-	evalCtx := pipelinex.NewEvaluationContext()
+	evalCtx := NewEvaluationContext()
 	result, err := uncondEdge.Evaluate(evalCtx)
 	if err != nil {
 		t.Errorf("Unexpected error evaluating unconditional edge: %v", err)
@@ -176,13 +174,13 @@ func TestEdge_Evaluate(t *testing.T) {
 	}
 
 	// 测试条件边
-	condEdge := pipelinex.NewConditionalEdge(node1, node2, "{{ nodeStatus == 'SUCCESS' }}")
+	condEdge := NewConditionalEdge(node1, node2, "{{ nodeStatus == 'SUCCESS' }}")
 	if condEdge.Expression() == "" {
 		t.Error("Expected non-empty expression for conditional edge")
 	}
 
 	// 条件不满足的情况
-	evalCtx2 := pipelinex.NewEvaluationContext().WithNode(node1) // node1 状态是 RUNNING
+	evalCtx2 := NewEvaluationContext().WithNode(node1) // node1 状态是 RUNNING
 	result2, err := condEdge.Evaluate(evalCtx2)
 	if err != nil {
 		t.Errorf("Unexpected error evaluating conditional edge: %v", err)
@@ -192,7 +190,7 @@ func TestEdge_Evaluate(t *testing.T) {
 	}
 
 	// 条件满足的情况
-	evalCtx3 := pipelinex.NewEvaluationContext().WithNode(node2) // node2 状态是 SUCCESS
+	evalCtx3 := NewEvaluationContext().WithNode(node2) // node2 状态是 SUCCESS
 	result3, err := condEdge.Evaluate(evalCtx3)
 	if err != nil {
 		t.Errorf("Unexpected error evaluating conditional edge: %v", err)
@@ -203,10 +201,10 @@ func TestEdge_Evaluate(t *testing.T) {
 }
 
 func TestEdge_ID(t *testing.T) {
-	node1 := pipelinex.NewDGANode("a", "RUNNING")
-	node2 := pipelinex.NewDGANode("b", "UNKNOWN")
+	node1 := NewDGANode("a", "RUNNING")
+	node2 := NewDGANode("b", "UNKNOWN")
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 	expectedID := "a->b"
 	if edge.ID() != expectedID {
 		t.Errorf("Expected edge ID %s, got %s", expectedID, edge.ID())

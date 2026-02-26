@@ -1,21 +1,19 @@
-package test
+package docker
 
 import (
 	"context"
-	"fmt"
 	"os/exec"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/chenyingqiao/pipelinex"
-	"github.com/chenyingqiao/pipelinex/executor/docker"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestDockerAdapter_Config(t *testing.T) {
-	adapter := docker.NewDockerAdapter()
+	adapter := NewDockerAdapter()
 	ctx := context.Background()
 
 	config := map[string]any{
@@ -28,8 +26,8 @@ func TestDockerAdapter_Config(t *testing.T) {
 		"env": map[string]string{
 			"GO_VERSION": "1.21",
 		},
-		"tty":      true,
-		"ttyWidth": 120,
+		"tty":       true,
+		"ttyWidth":  120,
 		"ttyHeight": 40,
 	}
 
@@ -40,7 +38,7 @@ func TestDockerAdapter_Config(t *testing.T) {
 }
 
 func TestDockerBridge_Conn(t *testing.T) {
-	bridge := docker.NewDockerBridge()
+	bridge := NewDockerBridge()
 	ctx := context.Background()
 
 	config := map[string]any{
@@ -49,7 +47,7 @@ func TestDockerBridge_Conn(t *testing.T) {
 		"tty":     true,
 	}
 
-	adapter := docker.NewDockerAdapter()
+	adapter := NewDockerAdapter()
 	err := adapter.Config(ctx, config)
 	if err != nil {
 		t.Errorf("Config() error = %v", err)
@@ -65,45 +63,45 @@ func TestDockerBridge_Conn(t *testing.T) {
 	}
 
 	// 验证返回的是 DockerExecutor 类型
-	_, ok := executor.(*docker.DockerExecutor)
+	_, ok := executor.(*DockerExecutor)
 	if !ok {
 		t.Error("Expected executor to be *docker.DockerExecutor")
 	}
 }
 
 func TestDockerExecutor_Setters(t *testing.T) {
-	executor, err := docker.NewDockerExecutor()
+	executor, err := NewDockerExecutor()
 	if err != nil {
 		t.Fatalf("NewDockerExecutor() error = %v", err)
 	}
 
 	// 测试设置镜像
-	executor.SetImage("golang:1.21-alpine")
+	executor.setImage("golang:1.21-alpine")
 
 	// 测试设置工作目录
-	executor.SetWorkdir("/app")
+	executor.setWorkdir("/app")
 
 	// 测试设置环境变量
-	executor.SetEnv("KEY1", "value1")
-	executor.SetEnv("KEY2", "value2")
+	executor.setEnv("KEY1", "value1")
+	executor.setEnv("KEY2", "value2")
 
 	// 测试设置卷挂载
-	executor.SetVolume("/host/path", "/container/path")
+	executor.setVolume("/host/path", "/container/path")
 
 	// 测试设置网络
-	executor.SetNetwork("host")
+	executor.setNetwork("host")
 
 	// 测试设置仓库
-	executor.SetRegistry("myregistry.com")
+	executor.setRegistry("myregistry.com")
 
 	// 测试 TTY 设置
-	executor.SetTTY(true)
-	executor.SetTTYSize(120, 40)
+	executor.setTTY(true)
+	executor.setTTYSize(120, 40)
 
 	// 这些方法不应该 panic
 	assert.NotPanics(t, func() {
-		executor.SetTTY(false)
-		executor.SetTTYSize(80, 24)
+		executor.setTTY(false)
+		executor.setTTYSize(80, 24)
 	})
 }
 
@@ -162,45 +160,17 @@ func TestParseVolume(t *testing.T) {
 
 func TestDockerExecutor_Interface(t *testing.T) {
 	// 验证 DockerExecutor 实现了 Executor 接口
-	var _ pipelinex.Executor = (*docker.DockerExecutor)(nil)
+	var _ pipelinex.Executor = (*DockerExecutor)(nil)
 }
 
 func TestDockerAdapter_Interface(t *testing.T) {
 	// 验证 DockerAdapter 实现了 Adapter 接口
-	var _ pipelinex.Adapter = (*docker.DockerAdapter)(nil)
+	var _ pipelinex.Adapter = (*DockerAdapter)(nil)
 }
 
 func TestDockerBridge_Interface(t *testing.T) {
 	// 验证 DockerBridge 实现了 Bridge 接口
-	var _ pipelinex.Bridge = (*docker.DockerBridge)(nil)
-}
-
-// parseVolume 是辅助函数，用于测试（复制docker包中的实现）
-func parseVolume(volume string) (hostPath, containerPath string, err error) {
-	parts := []string{}
-	current := ""
-	for i := 0; i < len(volume); i++ {
-		if volume[i] == ':' {
-			parts = append(parts, current)
-			current = ""
-		} else {
-			current += string(volume[i])
-		}
-	}
-	parts = append(parts, current)
-
-	if len(parts) < 2 {
-		return "", "", fmt.Errorf("invalid volume format")
-	}
-
-	hostPath = parts[0]
-	containerPath = parts[1]
-
-	if hostPath == "" || containerPath == "" {
-		return "", "", fmt.Errorf("host path and container path cannot be empty")
-	}
-
-	return hostPath, containerPath, nil
+	var _ pipelinex.Bridge = (*DockerBridge)(nil)
 }
 
 func TestDockerExecutor_PrepareAndDestruction(t *testing.T) {
@@ -214,11 +184,11 @@ func TestDockerExecutor_PrepareAndDestruction(t *testing.T) {
 		t.Skip("Docker is not available, skipping test")
 	}
 
-	executor, err := docker.NewDockerExecutor()
+	executor, err := NewDockerExecutor()
 	if err != nil {
 		t.Fatalf("NewDockerExecutor() error = %v", err)
 	}
-	executor.SetImage("alpine:latest")
+	executor.setImage("alpine:latest")
 
 	// 准备环境
 	err = executor.Prepare(ctx)
@@ -244,7 +214,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 	configTests := []struct {
 		name   string
 		config map[string]any
-		verify func(t *testing.T, exec *docker.DockerExecutor)
+		verify func(t *testing.T, exec *DockerExecutor)
 	}{
 		{
 			name: "basic config",
@@ -253,7 +223,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 				"network":  "host",
 				"workdir":  "/app",
 			},
-			verify: func(t *testing.T, exec *docker.DockerExecutor) {
+			verify: func(t *testing.T, exec *DockerExecutor) {
 				// 配置应该被应用，没有错误
 				assert.NotNil(t, exec)
 			},
@@ -266,7 +236,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 					"/host/path2:/container/path2:ro",
 				},
 			},
-			verify: func(t *testing.T, exec *docker.DockerExecutor) {
+			verify: func(t *testing.T, exec *DockerExecutor) {
 				assert.NotNil(t, exec)
 			},
 		},
@@ -278,7 +248,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 					"KEY2": "value2",
 				},
 			},
-			verify: func(t *testing.T, exec *docker.DockerExecutor) {
+			verify: func(t *testing.T, exec *DockerExecutor) {
 				assert.NotNil(t, exec)
 			},
 		},
@@ -289,7 +259,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 				"ttyWidth":  120,
 				"ttyHeight": 40,
 			},
-			verify: func(t *testing.T, exec *docker.DockerExecutor) {
+			verify: func(t *testing.T, exec *DockerExecutor) {
 				assert.NotNil(t, exec)
 			},
 		},
@@ -303,7 +273,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 				"env":      map[string]string{"ENV": "test"},
 				"tty":      true,
 			},
-			verify: func(t *testing.T, exec *docker.DockerExecutor) {
+			verify: func(t *testing.T, exec *DockerExecutor) {
 				assert.NotNil(t, exec)
 			},
 		},
@@ -311,8 +281,8 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 
 	for _, tt := range configTests {
 		t.Run(tt.name, func(t *testing.T) {
-			bridge := docker.NewDockerBridge()
-			adapter := docker.NewDockerAdapter()
+			bridge := NewDockerBridge()
+			adapter := NewDockerAdapter()
 
 			err := adapter.Config(ctx, tt.config)
 			require.NoError(t, err, "Config should not return error")
@@ -321,7 +291,7 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 			require.NoError(t, err, "Conn should not return error")
 			require.NotNil(t, executor, "Executor should not be nil")
 
-			dockerExec, ok := executor.(*docker.DockerExecutor)
+			dockerExec, ok := executor.(*DockerExecutor)
 			require.True(t, ok, "Executor should be *docker.DockerExecutor")
 
 			tt.verify(t, dockerExec)
@@ -365,8 +335,8 @@ func TestDockerExecutor_AdapterConfigWithInvalidTypes(t *testing.T) {
 
 	for _, tt := range invalidConfigTests {
 		t.Run(tt.name, func(t *testing.T) {
-			bridge := docker.NewDockerBridge()
-			adapter := docker.NewDockerAdapter()
+			bridge := NewDockerBridge()
+			adapter := NewDockerAdapter()
 
 			// 配置不应该返回错误（只是忽略无效的配置）
 			err := adapter.Config(ctx, tt.config)
@@ -386,10 +356,10 @@ func TestDockerExecutor_VolumeParsing(t *testing.T) {
 	ctx := context.Background()
 
 	volumeTests := []struct {
-		name          string
-		volumes       any
-		expectError   bool
-		volumeCount   int
+		name        string
+		volumes     any
+		expectError bool
+		volumeCount int
 	}{
 		{
 			name: "string list volumes",
@@ -425,8 +395,8 @@ func TestDockerExecutor_VolumeParsing(t *testing.T) {
 
 	for _, tt := range volumeTests {
 		t.Run(tt.name, func(t *testing.T) {
-			bridge := docker.NewDockerBridge()
-			adapter := docker.NewDockerAdapter()
+			bridge := NewDockerBridge()
+			adapter := NewDockerAdapter()
 
 			config := map[string]any{
 				"volumes": tt.volumes,
@@ -490,8 +460,8 @@ func TestDockerExecutor_EnvConfigParsing(t *testing.T) {
 
 	for _, tt := range envTests {
 		t.Run(tt.name, func(t *testing.T) {
-			bridge := docker.NewDockerBridge()
-			adapter := docker.NewDockerAdapter()
+			bridge := NewDockerBridge()
+			adapter := NewDockerAdapter()
 
 			config := map[string]any{
 				"env": tt.env,
@@ -532,13 +502,13 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 	}
 
 	t.Run("full workflow", func(t *testing.T) {
-		executor, err := docker.NewDockerExecutor()
+		executor, err := NewDockerExecutor()
 		require.NoError(t, err)
 
 		// 配置执行器
-		executor.SetImage("alpine:latest")
-		executor.SetTTY(true)
-		executor.SetTTYSize(80, 24)
+		executor.setImage("alpine:latest")
+		executor.setTTY(true)
+		executor.setTTYSize(80, 24)
 
 		// 准备环境
 		err = executor.Prepare(ctx)
@@ -584,7 +554,7 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 					}
 				}
 
-				if stepResult, ok := result.(*docker.StepResult); ok {
+				if stepResult, ok := result.(*StepResult); ok {
 					t.Logf("Received step result: command=%q, error=%v", stepResult.Command, stepResult.Error)
 					assert.Equal(t, testCommand, stepResult.Command)
 					assert.NoError(t, stepResult.Error, "Command should execute successfully")
@@ -599,11 +569,11 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 	})
 
 	t.Run("TTY mode test", func(t *testing.T) {
-		executor, err := docker.NewDockerExecutor()
+		executor, err := NewDockerExecutor()
 		require.NoError(t, err)
 
-		executor.SetImage("alpine:latest")
-		executor.SetTTY(true) // 启用 TTY
+		executor.setImage("alpine:latest")
+		executor.setTTY(true) // 启用 TTY
 
 		err = executor.Prepare(ctx)
 		require.NoError(t, err)
@@ -632,11 +602,11 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 	})
 
 	t.Run("multi-step execution", func(t *testing.T) {
-		executor, err := docker.NewDockerExecutor()
+		executor, err := NewDockerExecutor()
 		require.NoError(t, err)
 
-		executor.SetImage("alpine:latest")
-		executor.SetTTY(false)
+		executor.setImage("alpine:latest")
+		executor.setTTY(false)
 
 		err = executor.Prepare(ctx)
 		require.NoError(t, err)
@@ -673,7 +643,7 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 		// 验证收到所有步骤的结果
 		stepResultCount := 0
 		for _, result := range results {
-			if _, ok := result.(*docker.StepResult); ok {
+			if _, ok := result.(*StepResult); ok {
 				stepResultCount++
 			}
 		}

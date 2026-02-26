@@ -1,16 +1,14 @@
-package test
+package pipelinex
 
 import (
 	"testing"
-
-	"github.com/chenyingqiao/pipelinex"
 )
 
 func TestNewDGAEdge(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "UNKNOWN")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "UNKNOWN")
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 
 	if edge.Source().Id() != "node1" {
 		t.Errorf("Expected source id 'node1', got '%s'", edge.Source().Id())
@@ -30,11 +28,11 @@ func TestNewDGAEdge(t *testing.T) {
 }
 
 func TestNewConditionalEdge(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "UNKNOWN")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "UNKNOWN")
 	expression := "{{ nodeStatus == 'SUCCESS' }}"
 
-	edge := pipelinex.NewConditionalEdge(node1, node2, expression)
+	edge := NewConditionalEdge(node1, node2, expression)
 
 	if edge.Source().Id() != "node1" {
 		t.Errorf("Expected source id 'node1', got '%s'", edge.Source().Id())
@@ -50,11 +48,11 @@ func TestNewConditionalEdge(t *testing.T) {
 }
 
 func TestDGAEdge_Evaluate_Unconditional(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "UNKNOWN")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "UNKNOWN")
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
-	evalCtx := pipelinex.NewEvaluationContext()
+	edge := NewDGAEdge(node1, node2)
+	evalCtx := NewEvaluationContext()
 
 	result, err := edge.Evaluate(evalCtx)
 	if err != nil {
@@ -67,11 +65,11 @@ func TestDGAEdge_Evaluate_Unconditional(t *testing.T) {
 }
 
 func TestDGAEdge_Evaluate_ConditionalTrue(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "SUCCESS")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "SUCCESS")
 
-	edge := pipelinex.NewConditionalEdge(node1, node2, "{{ nodeStatus == 'SUCCESS' }}")
-	evalCtx := pipelinex.NewEvaluationContext().WithNode(node2)
+	edge := NewConditionalEdge(node1, node2, "{{ nodeStatus == 'SUCCESS' }}")
+	evalCtx := NewEvaluationContext().WithNode(node2)
 
 	result, err := edge.Evaluate(evalCtx)
 	if err != nil {
@@ -84,11 +82,11 @@ func TestDGAEdge_Evaluate_ConditionalTrue(t *testing.T) {
 }
 
 func TestDGAEdge_Evaluate_ConditionalFalse(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "FAILED")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "FAILED")
 
-	edge := pipelinex.NewConditionalEdge(node1, node2, "{{ nodeStatus == 'SUCCESS' }}")
-	evalCtx := pipelinex.NewEvaluationContext().WithNode(node2)
+	edge := NewConditionalEdge(node1, node2, "{{ nodeStatus == 'SUCCESS' }}")
+	evalCtx := NewEvaluationContext().WithNode(node2)
 
 	result, err := edge.Evaluate(evalCtx)
 	if err != nil {
@@ -101,11 +99,11 @@ func TestDGAEdge_Evaluate_ConditionalFalse(t *testing.T) {
 }
 
 func TestDGAEdge_Evaluate_WithParams(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "UNKNOWN")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "UNKNOWN")
 
-	edge := pipelinex.NewConditionalEdge(node1, node2, "{{ branch == 'main' }}")
-	evalCtx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	edge := NewConditionalEdge(node1, node2, "{{ branch == 'main' }}")
+	evalCtx := NewEvaluationContext().WithParams(map[string]any{
 		"branch": "main",
 	})
 
@@ -120,12 +118,12 @@ func TestDGAEdge_Evaluate_WithParams(t *testing.T) {
 }
 
 func TestDGAEdge_Evaluate_InvalidExpression(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node1", "RUNNING")
-	node2 := pipelinex.NewDGANode("node2", "UNKNOWN")
+	node1 := NewDGANode("node1", "RUNNING")
+	node2 := NewDGANode("node2", "UNKNOWN")
 
 	// 使用无效的模板语法
-	edge := pipelinex.NewConditionalEdge(node1, node2, "{{ unclosed tag")
-	evalCtx := pipelinex.NewEvaluationContext()
+	edge := NewConditionalEdge(node1, node2, "{{ unclosed tag")
+	evalCtx := NewEvaluationContext()
 
 	_, err := edge.Evaluate(evalCtx)
 	if err == nil {
@@ -134,10 +132,10 @@ func TestDGAEdge_Evaluate_InvalidExpression(t *testing.T) {
 }
 
 func TestDGAEdge_ID(t *testing.T) {
-	node1 := pipelinex.NewDGANode("start", "RUNNING")
-	node2 := pipelinex.NewDGANode("end", "SUCCESS")
+	node1 := NewDGANode("start", "RUNNING")
+	node2 := NewDGANode("end", "SUCCESS")
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 
 	expectedID := "start->end"
 	if edge.ID() != expectedID {
@@ -146,10 +144,10 @@ func TestDGAEdge_ID(t *testing.T) {
 }
 
 func TestDGAEdge_ID_SpecialChars(t *testing.T) {
-	node1 := pipelinex.NewDGANode("node-1_test", "RUNNING")
-	node2 := pipelinex.NewDGANode("node.2", "SUCCESS")
+	node1 := NewDGANode("node-1_test", "RUNNING")
+	node2 := NewDGANode("node.2", "SUCCESS")
 
-	edge := pipelinex.NewDGAEdge(node1, node2)
+	edge := NewDGAEdge(node1, node2)
 
 	expectedID := "node-1_test->node.2"
 	if edge.ID() != expectedID {

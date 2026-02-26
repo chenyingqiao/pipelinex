@@ -1,20 +1,18 @@
-package test
+package pipelinex
 
 import (
 	"testing"
-
-	"github.com/chenyingqiao/pipelinex"
 )
 
 func TestNewEvaluationContext(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext()
+	ctx := NewEvaluationContext()
 	if ctx == nil {
 		t.Error("Expected non-nil evaluation context")
 	}
 }
 
 func TestDGAEvaluationContext_Get(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	ctx := NewEvaluationContext().WithParams(map[string]any{
 		"key": "value",
 	})
 
@@ -29,7 +27,7 @@ func TestDGAEvaluationContext_Get(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_Get_NotFound(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext()
+	ctx := NewEvaluationContext()
 
 	_, ok := ctx.Get("nonexistent")
 	if ok {
@@ -38,7 +36,7 @@ func TestDGAEvaluationContext_Get_NotFound(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_All_Empty(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext()
+	ctx := NewEvaluationContext()
 
 	all := ctx.All()
 	if len(all) != 0 {
@@ -47,7 +45,7 @@ func TestDGAEvaluationContext_All_Empty(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_All_WithParams(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	ctx := NewEvaluationContext().WithParams(map[string]any{
 		"branch": "main",
 		"commit": "abc123",
 	})
@@ -67,8 +65,8 @@ func TestDGAEvaluationContext_All_WithParams(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_All_WithNode(t *testing.T) {
-	node := pipelinex.NewDGANode("test-node", "RUNNING")
-	ctx := pipelinex.NewEvaluationContext().WithNode(node)
+	node := NewDGANode("test-node", "RUNNING")
+	ctx := NewEvaluationContext().WithNode(node)
 
 	all := ctx.All()
 
@@ -82,10 +80,10 @@ func TestDGAEvaluationContext_All_WithNode(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_WithNode_Chaining(t *testing.T) {
-	node := pipelinex.NewDGANode("node-1", "SUCCESS")
+	node := NewDGANode("node-1", "SUCCESS")
 
 	// 测试链式调用
-	ctx := pipelinex.NewEvaluationContext().
+	ctx := NewEvaluationContext().
 		WithParams(map[string]any{"key": "value"}).
 		WithNode(node)
 
@@ -103,11 +101,11 @@ func TestDGAEvaluationContext_WithNode_Chaining(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_WithNode_DoesNotModifyOriginal(t *testing.T) {
-	ctx1 := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	ctx1 := NewEvaluationContext().WithParams(map[string]any{
 		"key1": "value1",
 	})
 
-	node := pipelinex.NewDGANode("node-1", "RUNNING")
+	node := NewDGANode("node-1", "RUNNING")
 	ctx2 := ctx1.WithNode(node)
 
 	// ctx1 不应该包含节点信息
@@ -129,7 +127,7 @@ func TestDGAEvaluationContext_WithNode_DoesNotModifyOriginal(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_WithParams_DoesNotModifyOriginal(t *testing.T) {
-	ctx1 := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	ctx1 := NewEvaluationContext().WithParams(map[string]any{
 		"key1": "value1",
 	})
 
@@ -154,7 +152,7 @@ func TestDGAEvaluationContext_WithParams_DoesNotModifyOriginal(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_WithParams_Overwrite(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext().
+	ctx := NewEvaluationContext().
 		WithParams(map[string]any{
 			"key": "value1",
 		}).
@@ -169,7 +167,7 @@ func TestDGAEvaluationContext_WithParams_Overwrite(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_All_MultipleTypes(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	ctx := NewEvaluationContext().WithParams(map[string]any{
 		"string":  "text",
 		"int":     42,
 		"bool":    true,
@@ -201,9 +199,9 @@ func TestDGAEvaluationContext_All_MultipleTypes(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_Chaining_Multiple(t *testing.T) {
-	node := pipelinex.NewDGANode("node-x", "PENDING")
+	node := NewDGANode("node-x", "PENDING")
 
-	ctx := pipelinex.NewEvaluationContext().
+	ctx := NewEvaluationContext().
 		WithParams(map[string]any{"a": "1"}).
 		WithParams(map[string]any{"b": "2"}).
 		WithNode(node).
@@ -230,7 +228,7 @@ func TestDGAEvaluationContext_Chaining_Multiple(t *testing.T) {
 }
 
 func TestDGAEvaluationContext_EmptyKey(t *testing.T) {
-	ctx := pipelinex.NewEvaluationContext().WithParams(map[string]any{
+	ctx := NewEvaluationContext().WithParams(map[string]any{
 		"": "empty-key-value",
 	})
 

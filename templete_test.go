@@ -1,20 +1,18 @@
-package test
+package pipelinex
 
 import (
 	"testing"
-
-	"github.com/chenyingqiao/pipelinex"
 )
 
 func TestNewPongo2TemplateEngine(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	if engine == nil {
 		t.Error("Expected non-nil template engine")
 	}
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_True(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{
 		"status": "SUCCESS",
 	}
@@ -30,7 +28,7 @@ func TestPongo2TemplateEngine_EvaluateBool_True(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_False(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{
 		"status": "FAILED",
 	}
@@ -46,7 +44,7 @@ func TestPongo2TemplateEngine_EvaluateBool_False(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_EmptyResult(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	// 当模板输出为空时，应该返回 false
@@ -61,7 +59,7 @@ func TestPongo2TemplateEngine_EvaluateBool_EmptyResult(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_StringTrue(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	// 当模板输出 "true" 时，应该返回 true
@@ -76,7 +74,7 @@ func TestPongo2TemplateEngine_EvaluateBool_StringTrue(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_StringFalse(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	// 当模板输出 "false" 时，应该返回 false
@@ -101,7 +99,7 @@ func TestPongo2TemplateEngine_EvaluateBool_StringFalse(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_StringOne(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	result, err := engine.EvaluateBool("{{ '1' }}", ctx)
@@ -115,7 +113,7 @@ func TestPongo2TemplateEngine_EvaluateBool_StringOne(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_StringZero(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	result, err := engine.EvaluateBool("{{ '0' }}", ctx)
@@ -129,7 +127,7 @@ func TestPongo2TemplateEngine_EvaluateBool_StringZero(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_NonEmptyString(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	// 非空字符串应该返回 true
@@ -144,7 +142,7 @@ func TestPongo2TemplateEngine_EvaluateBool_NonEmptyString(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_InvalidSyntax(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	_, err := engine.EvaluateBool("{{ unclosed tag", ctx)
@@ -154,7 +152,7 @@ func TestPongo2TemplateEngine_EvaluateBool_InvalidSyntax(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_ComplexCondition(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{
 		"branch": "main",
 		"status": "SUCCESS",
@@ -172,7 +170,7 @@ func TestPongo2TemplateEngine_EvaluateBool_ComplexCondition(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateString(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{
 		"name": "World",
 	}
@@ -188,7 +186,7 @@ func TestPongo2TemplateEngine_EvaluateString(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateString_WithSpaces(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{
 		"text": "  hello world  ",
 	}
@@ -205,7 +203,7 @@ func TestPongo2TemplateEngine_EvaluateString_WithSpaces(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateString_InvalidSyntax(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 	ctx := map[string]any{}
 
 	_, err := engine.EvaluateString("{{ unclosed tag", ctx)
@@ -215,7 +213,7 @@ func TestPongo2TemplateEngine_EvaluateString_InvalidSyntax(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_Validate_Valid(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 
 	err := engine.Validate("{{ status == 'SUCCESS' }}")
 	if err != nil {
@@ -224,7 +222,7 @@ func TestPongo2TemplateEngine_Validate_Valid(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_Validate_Invalid(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 
 	err := engine.Validate("{{ unclosed tag")
 	if err == nil {
@@ -233,7 +231,7 @@ func TestPongo2TemplateEngine_Validate_Invalid(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_Validate_Empty(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 
 	// 空字符串应该是有效的
 	err := engine.Validate("")
@@ -243,7 +241,7 @@ func TestPongo2TemplateEngine_Validate_Empty(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_WithPipelineData(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 
 	// 创建模拟的 pipeline 数据
 	ctx := map[string]any{
@@ -262,7 +260,7 @@ func TestPongo2TemplateEngine_EvaluateBool_WithPipelineData(t *testing.T) {
 }
 
 func TestPongo2TemplateEngine_EvaluateBool_WithNodeData(t *testing.T) {
-	engine := pipelinex.NewPongo2TemplateEngine()
+	engine := NewPongo2TemplateEngine()
 
 	ctx := map[string]any{
 		"nodeId":     "node-1",
