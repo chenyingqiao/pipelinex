@@ -1,6 +1,0 @@
-apiVersion: pipelinex.com/v1
-kind: Agent
-metadata:
-  name: example-agent
-spec:
-  liveTime: 1000
