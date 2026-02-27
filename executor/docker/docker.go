@@ -19,18 +19,19 @@ import (
 
 // DockerExecutor Docker执行器实现
 type DockerExecutor struct {
-	client      *client.Client
-	containerID string
-	image       string
-	workdir     string
-	env         map[string]string
-	volumes     map[string]string
-	network     string
-	registry    string
-	tty         bool // 是否启用 TTY 模式
-	ttyHeight   uint // TTY 终端高度
-	ttyWidth    uint // TTY 终端宽度
-	mu          sync.RWMutex
+	client            *client.Client
+	containerID       string
+	image             string
+	workdir           string
+	env               map[string]string
+	volumes           map[string]string
+	network           string
+	registry          string
+	tty               bool               // 是否启用 TTY 模式
+	ttyHeight         uint               // TTY 终端高度
+	ttyWidth          uint               // TTY 终端宽度
+	currentExecCancel context.CancelFunc // 用于取消当前执行的命令
+	mu                sync.RWMutex
 }
 
 // callbackWriter 自定义 Writer 用于实时回调输出
@@ -340,21 +341,69 @@ func (d *DockerExecutor) executeCommandStreaming(ctx context.Context, command st
 }
 
 // executeCommandInContainerStreaming 在容器中执行命令并实时流式输出
+// 当 ctx 被取消时，会向进程发送 Ctrl+C 信号 (\x03)
 func (d *DockerExecutor) executeCommandInContainerStreaming(ctx context.Context, command string, outputCallback func([]byte)) error {
 	containerID, useTTY, err := d.getContainerInfo()
 	if err != nil {
 		return err
 	}
 
-	execID, attachResp, err := d.createAndAttachExec(ctx, containerID, command, useTTY)
+	// 创建 stdin pipe，用于发送 Ctrl+C
+	stdinReader, stdinWriter := io.Pipe()
+	defer stdinWriter.Close()
+
+	execID, attachResp, err := d.createAndAttachExec(ctx, containerID, command, useTTY, stdinReader)
 	if err != nil {
 		return err
 	}
 	defer attachResp.Close()
 
-	outputDone := d.startOutputStream(ctx, attachResp, outputCallback, useTTY)
+	// 创建一个内部可取消的上下文
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
 
-	return d.waitForExecCompletion(ctx, execID, attachResp, outputDone)
+	// 注册取消函数，供外部调用
+	d.mu.Lock()
+	d.currentExecCancel = func() {
+		// 发送 Ctrl+C (\x03)
+		stdinWriter.Write([]byte{0x03})
+		stdinWriter.Close()
+		execCancel()
+	}
+	d.mu.Unlock()
+
+	// 监听上下文取消，发送 Ctrl+C
+	go func() {
+		<-ctx.Done()
+		d.mu.RLock()
+		cancel := d.currentExecCancel
+		d.mu.RUnlock()
+		if cancel != nil {
+			cancel()
+		}
+	}()
+
+	outputDone := d.startOutputStream(execCtx, attachResp, outputCallback, useTTY)
+
+	err = d.waitForExecCompletion(execCtx, execID, attachResp, outputDone)
+
+	// 清理
+	stdinWriter.Close()
+	d.mu.Lock()
+	d.currentExecCancel = nil
+	d.mu.Unlock()
+
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		if execCtx.Err() != nil {
+			return execCtx.Err()
+		}
+		return err
+	}
+
+	return nil
 }
 
 // getContainerInfo 获取容器信息
@@ -371,13 +420,14 @@ func (d *DockerExecutor) getContainerInfo() (string, bool, error) {
 }
 
 // createAndAttachExec 创建并附加到 exec
-func (d *DockerExecutor) createAndAttachExec(ctx context.Context, containerID, command string, useTTY bool) (string, types.HijackedResponse, error) {
+func (d *DockerExecutor) createAndAttachExec(ctx context.Context, containerID, command string, useTTY bool, stdin io.Reader) (string, types.HijackedResponse, error) {
 	shell := d.detectShell()
 
 	execConfig := container.ExecOptions{
 		Cmd:          []string{shell, "-c", command},
 		AttachStdout: true,
 		AttachStderr: true,
+		AttachStdin:  true,
 		Tty:          useTTY,
 	}
 
@@ -389,6 +439,13 @@ func (d *DockerExecutor) createAndAttachExec(ctx context.Context, containerID, c
 	attachResp, err := d.client.ContainerExecAttach(ctx, execResp.ID, container.ExecAttachOptions{Tty: useTTY})
 	if err != nil {
 		return "", types.HijackedResponse{}, fmt.Errorf("failed to attach to exec: %w", err)
+	}
+
+	// 将 stdin 连接到 attach 连接
+	if stdin != nil {
+		go func() {
+			io.Copy(attachResp.Conn, stdin)
+		}()
 	}
 
 	return execResp.ID, attachResp, nil
