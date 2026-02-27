@@ -304,10 +304,10 @@ type StepResult struct {
 
 ```bash
 # 运行 Docker Executor 测试
-go test ./test/docker_executor_test.go -v
+go test ./executor/docker/ -v
 
 # 运行所有测试
-go test ./test/ -v
+go test ./... -v
 ```
 
 注意：部分测试需要 Docker 环境，如果没有 Docker 会跳过相关测试。
