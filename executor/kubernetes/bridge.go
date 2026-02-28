@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 )
 
 // KubernetesBridge Kubernetes桥接器实现
@@ -21,7 +21,7 @@ func NewKubernetesBridge() *KubernetesBridge {
 // Conn 连接到Kubernetes环境并创建执行器
 // adapter: 适配器，包含Kubernetes配置
 // 返回: Kubernetes执行器实例
-func (b *KubernetesBridge) Conn(ctx context.Context, adapter pipelinex.Adapter) (pipelinex.Executor, error) {
+func (b *KubernetesBridge) Conn(ctx context.Context, adapter executor.Adapter) (executor.Executor, error) {
 	// 创建新的Kubernetes执行器
 	executor, err := NewKubernetesExecutor()
 	if err != nil {
@@ -45,7 +45,7 @@ func (b *KubernetesBridge) Conn(ctx context.Context, adapter pipelinex.Adapter) 
 }
 
 // 确保KubernetesBridge实现了Bridge接口
-var _ pipelinex.Bridge = (*KubernetesBridge)(nil)
+var _ executor.Bridge = (*KubernetesBridge)(nil)
 
 // applyConfigToExecutor 将配置应用到执行器
 func applyConfigToExecutor(config map[string]any, executor *KubernetesExecutor) error {

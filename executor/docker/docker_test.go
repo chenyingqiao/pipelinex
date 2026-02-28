@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -53,55 +53,55 @@ func TestDockerBridge_Conn(t *testing.T) {
 		t.Errorf("Config() error = %v", err)
 	}
 
-	executor, err := bridge.Conn(ctx, adapter)
+	exec, err := bridge.Conn(ctx, adapter)
 	if err != nil {
 		t.Errorf("Conn() error = %v", err)
 	}
 
-	if executor == nil {
+	if exec == nil {
 		t.Error("Expected non-nil executor")
 	}
 
 	// 验证返回的是 DockerExecutor 类型
-	_, ok := executor.(*DockerExecutor)
+	_, ok := exec.(*DockerExecutor)
 	if !ok {
 		t.Error("Expected executor to be *docker.DockerExecutor")
 	}
 }
 
 func TestDockerExecutor_Setters(t *testing.T) {
-	executor, err := NewDockerExecutor()
+	exec, err := NewDockerExecutor()
 	if err != nil {
 		t.Fatalf("NewDockerExecutor() error = %v", err)
 	}
 
 	// 测试设置镜像
-	executor.setImage("golang:1.21-alpine")
+	exec.setImage("golang:1.21-alpine")
 
 	// 测试设置工作目录
-	executor.setWorkdir("/app")
+	exec.setWorkdir("/app")
 
 	// 测试设置环境变量
-	executor.setEnv("KEY1", "value1")
-	executor.setEnv("KEY2", "value2")
+	exec.setEnv("KEY1", "value1")
+	exec.setEnv("KEY2", "value2")
 
 	// 测试设置卷挂载
-	executor.setVolume("/host/path", "/container/path")
+	exec.setVolume("/host/path", "/container/path")
 
 	// 测试设置网络
-	executor.setNetwork("host")
+	exec.setNetwork("host")
 
 	// 测试设置仓库
-	executor.setRegistry("myregistry.com")
+	exec.setRegistry("myregistry.com")
 
 	// 测试 TTY 设置
-	executor.setTTY(true)
-	executor.setTTYSize(120, 40)
+	exec.setTTY(true)
+	exec.setTTYSize(120, 40)
 
 	// 这些方法不应该 panic
 	assert.NotPanics(t, func() {
-		executor.setTTY(false)
-		executor.setTTYSize(80, 24)
+		exec.setTTY(false)
+		exec.setTTYSize(80, 24)
 	})
 }
 
@@ -160,17 +160,17 @@ func TestParseVolume(t *testing.T) {
 
 func TestDockerExecutor_Interface(t *testing.T) {
 	// 验证 DockerExecutor 实现了 Executor 接口
-	var _ pipelinex.Executor = (*DockerExecutor)(nil)
+	var _ executor.Executor = (*DockerExecutor)(nil)
 }
 
 func TestDockerAdapter_Interface(t *testing.T) {
 	// 验证 DockerAdapter 实现了 Adapter 接口
-	var _ pipelinex.Adapter = (*DockerAdapter)(nil)
+	var _ executor.Adapter = (*DockerAdapter)(nil)
 }
 
 func TestDockerBridge_Interface(t *testing.T) {
 	// 验证 DockerBridge 实现了 Bridge 接口
-	var _ pipelinex.Bridge = (*DockerBridge)(nil)
+	var _ executor.Bridge = (*DockerBridge)(nil)
 }
 
 func TestDockerExecutor_PrepareAndDestruction(t *testing.T) {
@@ -184,24 +184,24 @@ func TestDockerExecutor_PrepareAndDestruction(t *testing.T) {
 		t.Skip("Docker is not available, skipping test")
 	}
 
-	executor, err := NewDockerExecutor()
+	exec, err := NewDockerExecutor()
 	if err != nil {
 		t.Fatalf("NewDockerExecutor() error = %v", err)
 	}
-	executor.setImage("alpine:latest")
+	exec.setImage("alpine:latest")
 
 	// 准备环境
-	err = executor.Prepare(ctx)
+	err = exec.Prepare(ctx)
 	if err != nil {
 		t.Fatalf("Prepare() error = %v", err)
 	}
 
 	// 验证容器ID已设置
-	containerID := executor.GetContainerID()
+	containerID := exec.GetContainerID()
 	assert.NotEmpty(t, containerID, "Expected non-empty container ID after Prepare")
 
 	// 销毁环境
-	err = executor.Destruction(ctx)
+	err = exec.Destruction(ctx)
 	if err != nil {
 		t.Errorf("Destruction() error = %v", err)
 	}
@@ -287,11 +287,11 @@ func TestDockerExecutor_ConfigApplication(t *testing.T) {
 			err := adapter.Config(ctx, tt.config)
 			require.NoError(t, err, "Config should not return error")
 
-			executor, err := bridge.Conn(ctx, adapter)
+			exec, err := bridge.Conn(ctx, adapter)
 			require.NoError(t, err, "Conn should not return error")
-			require.NotNil(t, executor, "Executor should not be nil")
+			require.NotNil(t, exec, "Executor should not be nil")
 
-			dockerExec, ok := executor.(*DockerExecutor)
+			dockerExec, ok := exec.(*DockerExecutor)
 			require.True(t, ok, "Executor should be *docker.DockerExecutor")
 
 			tt.verify(t, dockerExec)
@@ -344,9 +344,9 @@ func TestDockerExecutor_AdapterConfigWithInvalidTypes(t *testing.T) {
 			assert.NoError(t, err, "Config should accept the config even with invalid types")
 
 			// 连接应该成功
-			executor, err := bridge.Conn(ctx, adapter)
+			exec, err := bridge.Conn(ctx, adapter)
 			assert.NoError(t, err, "Conn should succeed")
-			assert.NotNil(t, executor, "Executor should not be nil")
+			assert.NotNil(t, exec, "Executor should not be nil")
 		})
 	}
 }
@@ -405,12 +405,12 @@ func TestDockerExecutor_VolumeParsing(t *testing.T) {
 			err := adapter.Config(ctx, config)
 			assert.NoError(t, err, "Config should not return error")
 
-			executor, err := bridge.Conn(ctx, adapter)
+			exec, err := bridge.Conn(ctx, adapter)
 			if tt.expectError {
 				assert.Error(t, err, "Expected error for invalid volumes")
 			} else {
 				assert.NoError(t, err, "Conn should not return error")
-				assert.NotNil(t, executor, "Executor should not be nil")
+				assert.NotNil(t, exec, "Executor should not be nil")
 			}
 		})
 	}
@@ -470,12 +470,12 @@ func TestDockerExecutor_EnvConfigParsing(t *testing.T) {
 			err := adapter.Config(ctx, config)
 			assert.NoError(t, err, "Config should not return error")
 
-			executor, err := bridge.Conn(ctx, adapter)
+			exec, err := bridge.Conn(ctx, adapter)
 			if tt.expectError {
 				assert.Error(t, err, "Expected error for invalid env")
 			} else {
 				assert.NoError(t, err, "Conn should not return error")
-				assert.NotNil(t, executor, "Executor should not be nil")
+				assert.NotNil(t, exec, "Executor should not be nil")
 			}
 		})
 	}
@@ -502,24 +502,24 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 	}
 
 	t.Run("full workflow", func(t *testing.T) {
-		executor, err := NewDockerExecutor()
+		exec, err := NewDockerExecutor()
 		require.NoError(t, err)
 
 		// 配置执行器
-		executor.setImage("alpine:latest")
-		executor.setTTY(true)
-		executor.setTTYSize(80, 24)
+		exec.setImage("alpine:latest")
+		exec.setTTY(true)
+		exec.setTTYSize(80, 24)
 
 		// 准备环境
-		err = executor.Prepare(ctx)
+		err = exec.Prepare(ctx)
 		require.NoError(t, err, "Prepare should succeed")
 
-		containerID := executor.GetContainerID()
+		containerID := exec.GetContainerID()
 		assert.NotEmpty(t, containerID, "Container ID should be set")
 
 		// 清理环境
 		defer func() {
-			err := executor.Destruction(ctx)
+			err := exec.Destruction(ctx)
 			assert.NoError(t, err, "Destruction should succeed")
 		}()
 
@@ -527,7 +527,7 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 		resultChan := make(chan any, 10)
 		commandChan := make(chan any, 1)
 
-		go executor.Transfer(ctx, resultChan, commandChan)
+		go exec.Transfer(ctx, resultChan, commandChan)
 
 		// 发送测试命令
 		testCommand := "echo 'Hello from Docker'"
@@ -554,7 +554,7 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 					}
 				}
 
-				if stepResult, ok := result.(*StepResult); ok {
+				if stepResult, ok := result.(*executor.StepResult); ok {
 					t.Logf("Received step result: command=%q, error=%v", stepResult.Command, stepResult.Error)
 					assert.Equal(t, testCommand, stepResult.Command)
 					assert.NoError(t, stepResult.Error, "Command should execute successfully")
@@ -569,21 +569,21 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 	})
 
 	t.Run("TTY mode test", func(t *testing.T) {
-		executor, err := NewDockerExecutor()
+		exec, err := NewDockerExecutor()
 		require.NoError(t, err)
 
-		executor.setImage("alpine:latest")
-		executor.setTTY(true) // 启用 TTY
+		exec.setImage("alpine:latest")
+		exec.setTTY(true) // 启用 TTY
 
-		err = executor.Prepare(ctx)
+		err = exec.Prepare(ctx)
 		require.NoError(t, err)
 
-		defer executor.Destruction(ctx)
+		defer exec.Destruction(ctx)
 
 		resultChan := make(chan any, 10)
 		commandChan := make(chan any, 1)
 
-		go executor.Transfer(ctx, resultChan, commandChan)
+		go exec.Transfer(ctx, resultChan, commandChan)
 
 		// 发送会产生颜色输出的命令
 		commandChan <- "ls --color=always /"
@@ -601,32 +601,35 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 		}
 	})
 
-	t.Run("multi-step execution", func(t *testing.T) {
-		executor, err := NewDockerExecutor()
+	t.Run("multi-command execution", func(t *testing.T) {
+		exec, err := NewDockerExecutor()
 		require.NoError(t, err)
 
-		executor.setImage("alpine:latest")
-		executor.setTTY(false)
+		exec.setImage("alpine:latest")
+		exec.setTTY(false)
 
-		err = executor.Prepare(ctx)
+		err = exec.Prepare(ctx)
 		require.NoError(t, err)
 
-		defer executor.Destruction(ctx)
+		defer exec.Destruction(ctx)
 
 		resultChan := make(chan any, 20)
-		commandChan := make(chan any, 1)
+		commandChan := make(chan any, 3)
 
-		go executor.Transfer(ctx, resultChan, commandChan)
+		go exec.Transfer(ctx, resultChan, commandChan)
 
-		// 发送多个步骤
-		steps := []pipelinex.Step{
-			{Name: "echo", Run: "echo 'step 1'"},
-			{Name: "pwd", Run: "pwd"},
-			{Name: "ls", Run: "ls /"},
+		// 发送多个命令
+		commands := []string{
+			"echo 'step 1'",
+			"pwd",
+			"ls /",
 		}
-		commandChan <- steps
+		for _, cmd := range commands {
+			commandChan <- cmd
+		}
+		close(commandChan)
 
-		// 接收结果（每个步骤：输出 + 结果 = 6个消息）
+		// 接收结果（每个命令：输出 + 结果 = 6个消息）
 		results := []any{}
 		timeout := time.After(10 * time.Second)
 
@@ -640,14 +643,14 @@ func TestDockerExecutor_IntegrationWithDocker(t *testing.T) {
 			}
 		}
 
-		// 验证收到所有步骤的结果
-		stepResultCount := 0
+		// 验证收到所有命令的结果
+		cmdResultCount := 0
 		for _, result := range results {
-			if _, ok := result.(*StepResult); ok {
-				stepResultCount++
+			if _, ok := result.(*executor.StepResult); ok {
+				cmdResultCount++
 			}
 		}
-		assert.Equal(t, 3, stepResultCount, "Should receive 3 step results")
+		assert.Equal(t, 3, cmdResultCount, "Should receive 3 command results")
 	})
 }
 

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -159,10 +159,7 @@ func (k *KubernetesExecutor) Destruction(ctx context.Context) error {
 }
 
 // Transfer 在Kubernetes Pod中执行命令
-// 支持的数据类型：
-//   - pipelinex.Step: 执行单个步骤
-//   - []pipelinex.Step: 执行多个步骤
-//   - string: 直接执行命令字符串
+// 只支持 string 类型的命令
 //
 // 当 ctx 被取消时，会立即停止执行新命令，并终止当前正在执行的命令
 func (k *KubernetesExecutor) Transfer(ctx context.Context, resultChan chan<- any, commandChan <-chan any) {
@@ -186,20 +183,6 @@ func (k *KubernetesExecutor) Transfer(ctx context.Context, resultChan chan<- any
 
 		// 处理不同类型的数据
 		switch v := data.(type) {
-		case pipelinex.Step:
-			// 执行步骤（实时输出）
-			k.executeStepStreaming(execCtx, v, resultChan)
-		case []pipelinex.Step:
-			// 执行多个步骤（实时输出）
-			for _, step := range v {
-				// 检查上下文是否已取消
-				select {
-				case <-execCtx.Done():
-					return
-				default:
-				}
-				k.executeStepStreaming(execCtx, step, resultChan)
-			}
 		case string:
 			// 执行命令（实时输出）
 			k.executeCommandStreaming(execCtx, v, resultChan)
@@ -315,31 +298,6 @@ func (k *KubernetesExecutor) waitForPodRunning(ctx context.Context) error {
 	}
 }
 
-// executeStepStreaming 执行步骤并实时流式输出
-func (k *KubernetesExecutor) executeStepStreaming(ctx context.Context, step pipelinex.Step, resultChan chan<- any) {
-	startTime := time.Now()
-	var execErr error
-
-	// 实时执行命令
-	err := k.executeCommandInPodStreaming(ctx, step.Run, func(data []byte) {
-		resultChan <- data
-	})
-
-	if err != nil {
-		execErr = err
-	}
-
-	// 发送最终结果
-	resultChan <- &StepResult{
-		StepName:   step.Name,
-		Command:    step.Run,
-		Output:     "",
-		Error:      execErr,
-		StartTime:  startTime,
-		FinishTime: time.Now(),
-	}
-}
-
 // executeCommandStreaming 执行命令并实时流式输出
 func (k *KubernetesExecutor) executeCommandStreaming(ctx context.Context, command string, resultChan chan<- any) {
 	startTime := time.Now()
@@ -349,7 +307,7 @@ func (k *KubernetesExecutor) executeCommandStreaming(ctx context.Context, comman
 	})
 
 	// 发送最终结果
-	resultChan <- &StepResult{
+	resultChan <- &executor.StepResult{
 		Command:    command,
 		Output:     "",
 		Error:      err,
@@ -630,15 +588,5 @@ func (k *KubernetesExecutor) GetNamespace() string {
 	return k.namespace
 }
 
-// StepResult 步骤执行结果
-type StepResult struct {
-	StepName   string
-	Command    string
-	Output     string
-	Error      error
-	StartTime  time.Time
-	FinishTime time.Time
-}
-
 // 确保KubernetesExecutor实现了Executor接口
-var _ pipelinex.Executor = (*KubernetesExecutor)(nil)
+var _ executor.Executor = (*KubernetesExecutor)(nil)

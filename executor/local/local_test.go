@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -49,12 +49,12 @@ func TestLocalBridge_Conn(t *testing.T) {
 	err := adapter.Config(ctx, config)
 	require.NoError(t, err, "Config should not return error")
 
-	executor, err := bridge.Conn(ctx, adapter)
+	exec, err := bridge.Conn(ctx, adapter)
 	require.NoError(t, err, "Conn should not return error")
-	require.NotNil(t, executor, "Executor should not be nil")
+	require.NotNil(t, exec, "Executor should not be nil")
 
 	// 验证返回的是 LocalExecutor 类型
-	localExec, ok := executor.(*LocalExecutor)
+	localExec, ok := exec.(*LocalExecutor)
 	require.True(t, ok, "Expected executor to be *local.LocalExecutor")
 
 	// 验证配置已应用
@@ -64,56 +64,56 @@ func TestLocalBridge_Conn(t *testing.T) {
 
 func TestLocalExecutor_Interface(t *testing.T) {
 	// 验证 LocalExecutor 实现了 Executor 接口
-	var _ pipelinex.Executor = (*LocalExecutor)(nil)
+	var _ executor.Executor = (*LocalExecutor)(nil)
 }
 
 func TestLocalAdapter_Interface(t *testing.T) {
 	// 验证 LocalAdapter 实现了 Adapter 接口
-	var _ pipelinex.Adapter = (*LocalAdapter)(nil)
+	var _ executor.Adapter = (*LocalAdapter)(nil)
 }
 
 func TestLocalBridge_Interface(t *testing.T) {
 	// 验证 LocalBridge 实现了 Bridge 接口
-	var _ pipelinex.Bridge = (*LocalBridge)(nil)
+	var _ executor.Bridge = (*LocalBridge)(nil)
 }
 
 func TestNewLocalExecutor(t *testing.T) {
-	executor := NewLocalExecutor()
-	require.NotNil(t, executor, "Executor should not be nil")
+	exec := NewLocalExecutor()
+	require.NotNil(t, exec, "Executor should not be nil")
 
 	// 验证默认配置
-	assert.NotEmpty(t, executor.GetShell(), "Default shell should be detected")
+	assert.NotEmpty(t, exec.GetShell(), "Default shell should be detected")
 }
 
 func TestLocalExecutor_Prepare(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("default prepare", func(t *testing.T) {
-		executor := NewLocalExecutor()
-		err := executor.Prepare(ctx)
+		exec := NewLocalExecutor()
+		err := exec.Prepare(ctx)
 		assert.NoError(t, err, "Prepare with no workdir should succeed")
 	})
 
 	t.Run("with valid workdir", func(t *testing.T) {
-		executor := NewLocalExecutor()
-		executor.setWorkdir("/tmp")
-		err := executor.Prepare(ctx)
+		exec := NewLocalExecutor()
+		exec.setWorkdir("/tmp")
+		err := exec.Prepare(ctx)
 		assert.NoError(t, err, "Prepare with valid workdir should succeed")
 	})
 
 	t.Run("with invalid workdir", func(t *testing.T) {
-		executor := NewLocalExecutor()
-		executor.setWorkdir("/nonexistent/path/that/does/not/exist")
-		err := executor.Prepare(ctx)
+		exec := NewLocalExecutor()
+		exec.setWorkdir("/nonexistent/path/that/does/not/exist")
+		err := exec.Prepare(ctx)
 		assert.Error(t, err, "Prepare with invalid workdir should fail")
 	})
 }
 
 func TestLocalExecutor_Destruction(t *testing.T) {
 	ctx := context.Background()
-	executor := NewLocalExecutor()
+	exec := NewLocalExecutor()
 
-	err := executor.Destruction(ctx)
+	err := exec.Destruction(ctx)
 	assert.NoError(t, err, "Destruction should succeed even with no running command")
 }
 
@@ -121,14 +121,14 @@ func TestLocalExecutor_Transfer_SingleCommand(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	executor := NewLocalExecutor()
-	require.NoError(t, executor.Prepare(ctx))
-	defer executor.Destruction(ctx)
+	exec := NewLocalExecutor()
+	require.NoError(t, exec.Prepare(ctx))
+	defer exec.Destruction(ctx)
 
 	resultChan := make(chan any, 10)
 	commandChan := make(chan any, 1)
 
-	go executor.Transfer(ctx, resultChan, commandChan)
+	go exec.Transfer(ctx, resultChan, commandChan)
 
 	// 发送测试命令
 	var testCmd string
@@ -142,7 +142,7 @@ func TestLocalExecutor_Transfer_SingleCommand(t *testing.T) {
 
 	// 接收结果
 	var output []byte
-	var result *StepResult
+	var result *executor.StepResult
 
 	timeout := time.After(5 * time.Second)
 resultLoop:
@@ -152,7 +152,7 @@ resultLoop:
 			switch v := res.(type) {
 			case []byte:
 				output = append(output, v...)
-			case *StepResult:
+			case *executor.StepResult:
 				result = v
 				break resultLoop
 			case error:
@@ -169,105 +169,6 @@ resultLoop:
 	assert.NoError(t, result.Error, "Command should execute successfully")
 }
 
-func TestLocalExecutor_Transfer_Step(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	executor := NewLocalExecutor()
-	require.NoError(t, executor.Prepare(ctx))
-	defer executor.Destruction(ctx)
-
-	resultChan := make(chan any, 10)
-	commandChan := make(chan any, 1)
-
-	go executor.Transfer(ctx, resultChan, commandChan)
-
-	// 发送测试步骤
-	step := pipelinex.Step{
-		Name: "test_step",
-		Run:  "echo 'Hello from Step'",
-	}
-	commandChan <- step
-	close(commandChan)
-
-	// 接收结果
-	var output []byte
-	var result *StepResult
-
-	timeout := time.After(5 * time.Second)
-resultLoop:
-	for {
-		select {
-		case res := <-resultChan:
-			switch v := res.(type) {
-			case []byte:
-				output = append(output, v...)
-			case *StepResult:
-				result = v
-				break resultLoop
-			case error:
-				t.Fatalf("Received error: %v", v)
-			}
-		case <-timeout:
-			t.Fatalf("Timeout waiting for results")
-		}
-	}
-
-	// 验证结果
-	require.NotNil(t, result, "Should receive StepResult")
-	assert.Equal(t, "test_step", result.StepName, "StepName should match")
-	assert.Equal(t, step.Run, result.Command, "Command should match")
-	assert.NoError(t, result.Error, "Step should execute successfully")
-}
-
-func TestLocalExecutor_Transfer_MultiStep(t *testing.T) {
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-
-	executor := NewLocalExecutor()
-	require.NoError(t, executor.Prepare(ctx))
-	defer executor.Destruction(ctx)
-
-	resultChan := make(chan any, 20)
-	commandChan := make(chan any, 1)
-
-	go executor.Transfer(ctx, resultChan, commandChan)
-
-	// 发送多个步骤
-	steps := []pipelinex.Step{
-		{Name: "step1", Run: "echo 'step 1 output'"},
-		{Name: "step2", Run: "echo 'step 2 output'"},
-		{Name: "step3", Run: "echo 'step 3 output'"},
-	}
-	commandChan <- steps
-	close(commandChan)
-
-	// 接收结果
-	var results []*StepResult
-	timeout := time.After(10 * time.Second)
-
-	for len(results) < 3 {
-		select {
-		case res := <-resultChan:
-			switch v := res.(type) {
-			case *StepResult:
-				results = append(results, v)
-			case error:
-				t.Fatalf("Received error: %v", v)
-			}
-		case <-timeout:
-			t.Fatalf("Timeout waiting for results, received %d results", len(results))
-		}
-	}
-
-	// 验证结果
-	assert.Equal(t, 3, len(results), "Should receive 3 step results")
-	for i, result := range results {
-		assert.NoError(t, result.Error, "Step %d should execute successfully", i+1)
-		assert.Equal(t, steps[i].Name, result.StepName, "StepName should match")
-	}
-}
-
 func TestLocalExecutor_Transfer_CommandFailure(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping on Windows")
@@ -276,21 +177,21 @@ func TestLocalExecutor_Transfer_CommandFailure(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	executor := NewLocalExecutor()
-	require.NoError(t, executor.Prepare(ctx))
-	defer executor.Destruction(ctx)
+	exec := NewLocalExecutor()
+	require.NoError(t, exec.Prepare(ctx))
+	defer exec.Destruction(ctx)
 
 	resultChan := make(chan any, 10)
 	commandChan := make(chan any, 1)
 
-	go executor.Transfer(ctx, resultChan, commandChan)
+	go exec.Transfer(ctx, resultChan, commandChan)
 
 	// 发送一个会失败的命令
 	commandChan <- "exit 1"
 	close(commandChan)
 
 	// 接收结果
-	var result *StepResult
+	var result *executor.StepResult
 	timeout := time.After(5 * time.Second)
 
 resultLoop:
@@ -298,7 +199,7 @@ resultLoop:
 		select {
 		case res := <-resultChan:
 			switch v := res.(type) {
-			case *StepResult:
+			case *executor.StepResult:
 				result = v
 				break resultLoop
 			case error:
@@ -318,15 +219,15 @@ func TestLocalExecutor_EnvConfiguration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	executor := NewLocalExecutor()
-	executor.setEnv("TEST_VAR", "test_value")
-	require.NoError(t, executor.Prepare(ctx))
-	defer executor.Destruction(ctx)
+	exec := NewLocalExecutor()
+	exec.setEnv("TEST_VAR", "test_value")
+	require.NoError(t, exec.Prepare(ctx))
+	defer exec.Destruction(ctx)
 
 	resultChan := make(chan any, 10)
 	commandChan := make(chan any, 1)
 
-	go executor.Transfer(ctx, resultChan, commandChan)
+	go exec.Transfer(ctx, resultChan, commandChan)
 
 	// 发送打印环境变量的命令
 	if runtime.GOOS == "windows" {
@@ -338,7 +239,7 @@ func TestLocalExecutor_EnvConfiguration(t *testing.T) {
 
 	// 收集输出
 	var output []byte
-	var result *StepResult
+	var result *executor.StepResult
 	timeout := time.After(5 * time.Second)
 
 resultLoop:
@@ -348,7 +249,7 @@ resultLoop:
 			switch v := res.(type) {
 			case []byte:
 				output = append(output, v...)
-			case *StepResult:
+			case *executor.StepResult:
 				result = v
 				break resultLoop
 			}
@@ -448,11 +349,11 @@ func TestLocalExecutor_ConfigApplication(t *testing.T) {
 			err := adapter.Config(ctx, tt.config)
 			require.NoError(t, err, "Config should not return error")
 
-			executor, err := bridge.Conn(ctx, adapter)
+			exec, err := bridge.Conn(ctx, adapter)
 			require.NoError(t, err, "Conn should not return error")
-			require.NotNil(t, executor, "Executor should not be nil")
+			require.NotNil(t, exec, "Executor should not be nil")
 
-			localExec, ok := executor.(*LocalExecutor)
+			localExec, ok := exec.(*LocalExecutor)
 			require.True(t, ok, "Executor should be *local.LocalExecutor")
 
 			tt.verify(t, localExec)

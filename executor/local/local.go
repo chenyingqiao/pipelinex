@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 )
 
 // LocalExecutor 本地执行器实现
@@ -76,10 +76,7 @@ func (l *LocalExecutor) Destruction(ctx context.Context) error {
 }
 
 // Transfer 接收命令并执行
-// 支持的数据类型：
-//   - pipelinex.Step: 执行单个步骤
-//   - []pipelinex.Step: 执行多个步骤
-//   - string: 直接执行命令字符串
+// 只支持 string 类型的命令
 //
 // 当 ctx 被取消时，会立即停止执行新命令，并终止当前正在执行的进程
 func (l *LocalExecutor) Transfer(ctx context.Context, resultChan chan<- any, commandChan <-chan any) {
@@ -106,20 +103,6 @@ func (l *LocalExecutor) Transfer(ctx context.Context, resultChan chan<- any, com
 
 		// 处理不同类型的数据
 		switch v := data.(type) {
-		case pipelinex.Step:
-			// 执行单个步骤（实时输出）
-			l.executeStepStreaming(execCtx, v, resultChan)
-		case []pipelinex.Step:
-			// 执行多个步骤（实时输出）
-			for _, step := range v {
-				// 检查上下文是否已取消
-				select {
-				case <-execCtx.Done():
-					return
-				default:
-				}
-				l.executeStepStreaming(execCtx, step, resultChan)
-			}
 		case string:
 			// 执行命令（实时输出）
 			l.executeCommandStreaming(execCtx, v, resultChan)
@@ -143,34 +126,6 @@ func (l *LocalExecutor) killCurrentProcess() {
 	}
 }
 
-// executeStepStreaming 执行步骤并实时流式输出
-func (l *LocalExecutor) executeStepStreaming(ctx context.Context, step pipelinex.Step, resultChan chan<- any) {
-	startTime := time.Now()
-
-	// 创建带超时的上下文
-	execCtx := ctx
-	if l.timeout > 0 {
-		var cancel context.CancelFunc
-		execCtx, cancel = context.WithTimeout(ctx, l.timeout)
-		defer cancel()
-	}
-
-	// 实时执行命令
-	err := l.executeCommandWithStreaming(execCtx, step.Run, func(data []byte) {
-		resultChan <- data
-	})
-
-	// 发送最终结果
-	resultChan <- &StepResult{
-		StepName:   step.Name,
-		Command:    step.Run,
-		Output:     "",
-		Error:      err,
-		StartTime:  startTime,
-		FinishTime: time.Now(),
-	}
-}
-
 // executeCommandStreaming 执行命令并实时流式输出
 func (l *LocalExecutor) executeCommandStreaming(ctx context.Context, command string, resultChan chan<- any) {
 	startTime := time.Now()
@@ -188,7 +143,7 @@ func (l *LocalExecutor) executeCommandStreaming(ctx context.Context, command str
 	})
 
 	// 发送最终结果
-	resultChan <- &StepResult{
+	resultChan <- &executor.StepResult{
 		Command:    command,
 		Output:     "",
 		Error:      err,
@@ -410,15 +365,5 @@ func isShellAvailable(shell string) bool {
 	return err == nil
 }
 
-// StepResult 步骤执行结果
-type StepResult struct {
-	StepName   string
-	Command    string
-	Output     string
-	Error      error
-	StartTime  time.Time
-	FinishTime time.Time
-}
-
 // 确保LocalExecutor实现了Executor接口
-var _ pipelinex.Executor = (*LocalExecutor)(nil)
+var _ executor.Executor = (*LocalExecutor)(nil)

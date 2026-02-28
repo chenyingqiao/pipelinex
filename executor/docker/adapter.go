@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 )
 
 // DockerAdapter Docker适配器实现
@@ -36,7 +36,7 @@ func (a *DockerAdapter) Config(ctx context.Context, config map[string]any) error
 }
 
 // 确保DockerAdapter实现了Adapter接口
-var _ pipelinex.Adapter = (*DockerAdapter)(nil)
+var _ executor.Adapter = (*DockerAdapter)(nil)
 
 // parseVolume 解析卷挂载字符串
 // 支持的格式：

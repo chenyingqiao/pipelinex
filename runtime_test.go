@@ -40,22 +40,30 @@ func TestRuntimeImpl_RunSync(t *testing.T) {
 	ctx := context.Background()
 	runtime := NewRuntime(ctx)
 
-	// Prepare test configuration
+	// Prepare test configuration with new format
 	config := `
 Param:
   test-param: "test-value"
-Graph: "Task1->Task2"
+Executors:
+  local:
+    type: local
+    config:
+      shell: bash
+Graph: |
+  stateDiagram-v2
+    [*] --> Task1
+    Task1 --> Task2
 Nodes:
   Task1:
-    Image: "test-image:latest"
-    Config:
-      key1: "value1"
-    Cmd: "echo 'task1'"
+    executor: local
+    steps:
+      - name: step1
+        run: "echo 'task1'"
   Task2:
-    Image: "test-image:latest"
-    Config:
-      key2: "value2"
-    Cmd: "echo 'task2'"
+    executor: local
+    steps:
+      - name: step1
+        run: "echo 'task2'"
 `
 
 	// Create test listener
@@ -101,14 +109,24 @@ func TestRuntimeImpl_RunSync_DuplicateID(t *testing.T) {
 	ctx := context.Background()
 	runtime := NewRuntime(ctx)
 
-	// Prepare test configuration
+	// Prepare test configuration with new format
 	config := `
 Param:
   test-param: "test-value"
+Executors:
+  local:
+    type: local
+    config:
+      shell: bash
+Graph: |
+  stateDiagram-v2
+    [*] --> Task1
 Nodes:
   Task1:
-    Image: "test-image:latest"
-    Cmd: "echo 'task1'"
+    executor: local
+    steps:
+      - name: step1
+        run: "echo 'task1'"
 `
 
 	// First execution
@@ -129,14 +147,24 @@ func TestRuntimeImpl_RunAsync(t *testing.T) {
 	ctx := context.Background()
 	runtime := NewRuntime(ctx)
 
-	// Prepare test configuration
+	// Prepare test configuration with new format
 	config := `
 Param:
   test-param: "test-value"
+Executors:
+  local:
+    type: local
+    config:
+      shell: bash
+Graph: |
+  stateDiagram-v2
+    [*] --> Task1
 Nodes:
   Task1:
-    Image: "test-image:latest"
-    Cmd: "echo 'task1'"
+    executor: local
+    steps:
+      - name: step1
+        run: "echo 'task1'"
 `
 
 	// Create test listener
@@ -176,14 +204,24 @@ func TestRuntimeImpl_Cancel(t *testing.T) {
 	ctx := context.Background()
 	runtime := NewRuntime(ctx)
 
-	// Prepare test configuration
+	// Prepare test configuration with new format - use sleep to ensure pipeline is running
 	config := `
 Param:
   test-param: "test-value"
+Executors:
+  local:
+    type: local
+    config:
+      shell: bash
+Graph: |
+  stateDiagram-v2
+    [*] --> Task1
 Nodes:
   Task1:
-    Image: "test-image:latest"
-    Cmd: "sleep 10"
+    executor: local
+    steps:
+      - name: step1
+        run: "sleep 2"
 `
 
 	// Execute asynchronous pipeline
@@ -193,9 +231,9 @@ Nodes:
 	}
 
 	// 等待流水线开始执行
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
 
-	// Cancel pipeline
+	// Cancel pipeline before it completes
 	err = runtime.Cancel(ctx, "test-cancel-pipeline")
 	if err != nil {
 		t.Fatalf("Cancel failed: %v", err)
@@ -330,14 +368,24 @@ func TestRuntimeImpl_ConcurrentAccess(t *testing.T) {
 	ctx := context.Background()
 	runtime := NewRuntime(ctx)
 
-	// Prepare test configuration
-	config := `
+	// Prepare test configuration with new format
+	configTemplate := `
 Param:
   test-param: "test-value"
+Executors:
+  local:
+    type: local
+    config:
+      shell: bash
+Graph: |
+  stateDiagram-v2
+    [*] --> Task%d
 Nodes:
   Task%d:
-    Image: "test-image:latest"
-    Cmd: "echo 'task%d'"
+    executor: local
+    steps:
+      - name: step1
+        run: "echo 'task%d'"
 `
 
 	// Concurrent test
@@ -345,7 +393,7 @@ Nodes:
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			defer func() { done <- true }()
-			pipelineConfig := fmt.Sprintf(config, id, id)
+			pipelineConfig := fmt.Sprintf(configTemplate, id, id, id)
 			_, err := runtime.RunAsync(ctx, fmt.Sprintf("pipeline-%d", id), pipelineConfig, nil)
 			if err != nil {
 				t.Errorf("Concurrent RunAsync failed: %v", err)
@@ -394,7 +442,7 @@ func TestParseGraphEdges_BasicStateDiagram(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	// 验证所有节点都存在
 	nodes := graph.Nodes()
@@ -433,7 +481,7 @@ func TestParseGraphEdges_ComplexDiagram(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	nodes := graph.Nodes()
 	if len(nodes) != 5 {
@@ -453,7 +501,7 @@ func TestParseGraphEdges_EmptyGraph(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	nodes := graph.Nodes()
 	if len(nodes) != 2 {
@@ -473,7 +521,7 @@ func TestParseGraphEdges_InvalidSyntax(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	// 即使图语法无效，也应该创建节点
 	nodes := graph.Nodes()
@@ -499,7 +547,7 @@ func TestParseGraphEdges_MissingNode(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	// 即使 B 节点缺失在配置中，也应该创建存在的节点
 	nodes := graph.Nodes()
@@ -585,7 +633,7 @@ func TestParseGraphEdges_ConditionalEdges(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	// 验证所有节点都存在
 	nodes := graph.Nodes()
@@ -629,7 +677,7 @@ func TestParseGraphEdges_UnconditionalEdges(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	// 获取边并验证无条件
 	edges := graph.Edges()
@@ -665,7 +713,7 @@ func TestParseGraphEdges_WithNotes(t *testing.T) {
 	}
 
 	runtime := NewRuntime(ctx).(*RuntimeImpl)
-	graph := runtime.BuildGraph(config)
+	graph := runtime.buildGraph(config)
 
 	nodes := graph.Nodes()
 	if len(nodes) != 3 {

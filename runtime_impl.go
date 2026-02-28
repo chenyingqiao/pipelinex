@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/chenyingqiao/pipelinex/executor/provider"
 	"github.com/tetrafolium/mermaid-check/ast"
 	"github.com/tetrafolium/mermaid-check/parser"
 	"gopkg.in/yaml.v2"
@@ -32,13 +33,13 @@ type RuntimeImpl struct {
 func NewRuntime(ctx context.Context) Runtime {
 	ctx, cancel := context.WithCancel(ctx)
 	return &RuntimeImpl{
-		pipelines:      make(map[string]Pipeline),
-		pipelineIds:    make(map[string]bool),
-		ctx:            ctx,
-		cancel:         cancel,
-		doneChan:       make(chan struct{}),
-		background:     make(chan struct{}),
-		templateEngine: NewPongo2TemplateEngine(), // 默认引擎
+		pipelines:       make(map[string]Pipeline),
+		pipelineIds:     make(map[string]bool),
+		ctx:             ctx,
+		cancel:          cancel,
+		doneChan:        make(chan struct{}),
+		background:      make(chan struct{}),
+		templateEngine:  NewPongo2TemplateEngine(), // 默认引擎
 	}
 }
 
@@ -97,13 +98,23 @@ func (r *RuntimeImpl) RunAsync(ctx context.Context, id string, config string, li
 	}
 
 	// 构建图结构
-	graph := r.BuildGraph(pipelineConfig)
+	graph := r.buildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
 	// 设置metadata
 	if err := r.setupMetadata(ctx, pipeline, pipelineConfig); err != nil {
 		return nil, fmt.Errorf("failed to setup metadata: %w", err)
 	}
+
+	// 创建并配置执行器提供者
+	execProvider := provider.NewProvider()
+	for name, execConfig := range pipelineConfig.Executors {
+		execProvider.RegisterExecutor(name, provider.ExecutorConfig{
+			Type:   execConfig.Type,
+			Config: execConfig.Config,
+		})
+	}
+	pipeline.SetExecutorProvider(execProvider)
 
 	// 存储流水线并标记ID为已使用
 	r.pipelines[id] = pipeline
@@ -150,13 +161,23 @@ func (r *RuntimeImpl) RunSync(ctx context.Context, id string, config string, lis
 	}
 
 	// 构建图结构
-	graph := r.BuildGraph(pipelineConfig)
+	graph := r.buildGraph(pipelineConfig)
 	pipeline.SetGraph(graph)
 
 	// 设置metadata
 	if err := r.setupMetadata(ctx, pipeline, pipelineConfig); err != nil {
 		return nil, fmt.Errorf("failed to setup metadata: %w", err)
 	}
+
+	// 创建并配置执行器提供者
+	execProvider := provider.NewProvider()
+	for name, execConfig := range pipelineConfig.Executors {
+		execProvider.RegisterExecutor(name, provider.ExecutorConfig{
+			Type:   execConfig.Type,
+			Config: execConfig.Config,
+		})
+	}
+	pipeline.SetExecutorProvider(execProvider)
 
 	// 存储流水线并标记ID为已使用
 	r.pipelines[id] = pipeline
@@ -250,14 +271,21 @@ func (r *RuntimeImpl) parseConfig(config string) (*PipelineConfig, error) {
 	return &pipelineConfig, nil
 }
 
-// BuildGraph 构建图结构
-func (r *RuntimeImpl) BuildGraph(config *PipelineConfig) Graph {
+// buildGraph 构建图结构
+func (r *RuntimeImpl) buildGraph(config *PipelineConfig) Graph {
 	graph := NewDGAGraph()
 
 	// 创建节点
 	nodeMap := make(map[string]Node)
-	for nodeName := range config.Nodes {
-		node := NewDGANode(nodeName, StatusUnknown)
+	for nodeName, nodeConfig := range config.Nodes {
+		node := NewDGANodeWithConfig(
+			nodeName,
+			StatusUnknown,
+			nodeConfig.Executor,
+			nodeConfig.Image,
+			nodeConfig.Steps,
+			nodeConfig.Config,
+		)
 		nodeMap[nodeName] = node
 		graph.AddVertex(node)
 	}
@@ -419,3 +447,5 @@ func (r *RuntimeImpl) getTemplateEngine() TemplateEngine {
 	}
 	return r.templateEngine
 }
+
+

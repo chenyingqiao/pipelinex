@@ -1,6 +1,10 @@
 package pipelinex
 
-import "context"
+import (
+	"context"
+
+	"github.com/chenyingqiao/pipelinex/executor"
+)
 
 var (
 	//监听事件
@@ -31,6 +35,10 @@ type GraphReader interface {
 	//Traversal 遍历图结构
 	Traversal(ctx context.Context, evalCtx EvaluationContext, fn TraversalFn) error
 }
+
+// ExecutorProvider Executor提供者接口
+// 从executor/core导入
+type ExecutorProvider = executor.ExecutorProvider
 
 // 流水线事件
 type Event string
@@ -71,4 +79,6 @@ type Pipeline interface {
 	Notify()
 	//Cancel 取消流水线
 	Cancel()
+	//SetExecutorProvider 设置Executor提供者
+	SetExecutorProvider(provider ExecutorProvider)
 }

@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
@@ -180,57 +180,12 @@ func (d *DockerExecutor) Transfer(ctx context.Context, resultChan chan<- any, co
 
 		// 处理不同类型的数据
 		switch v := data.(type) {
-		case pipelinex.Step:
-			// 执行步骤（实时输出）
-			d.executeStepStreaming(execCtx, v, resultChan)
-		case []pipelinex.Step:
-			// 执行多个步骤（实时输出）
-			for _, step := range v {
-				// 检查上下文是否已取消
-				select {
-				case <-execCtx.Done():
-					return
-				default:
-				}
-				d.executeStepStreaming(execCtx, step, resultChan)
-			}
 		case string:
 			// 执行命令（实时输出）
 			d.executeCommandStreaming(execCtx, v, resultChan)
 		default:
 			resultChan <- fmt.Errorf("unsupported data type: %T", data)
 		}
-	}
-}
-
-// executeStep 执行单个步骤
-func (d *DockerExecutor) executeStep(ctx context.Context, step pipelinex.Step) *StepResult {
-	startTime := time.Now()
-
-	output, err := d.executeCommandInContainer(ctx, step.Run)
-
-	return &StepResult{
-		StepName:   step.Name,
-		Command:    step.Run,
-		Output:     output,
-		Error:      err,
-		StartTime:  startTime,
-		FinishTime: time.Now(),
-	}
-}
-
-// executeCommand 执行命令
-func (d *DockerExecutor) executeCommand(ctx context.Context, command string) *StepResult {
-	startTime := time.Now()
-
-	output, err := d.executeCommandInContainer(ctx, command)
-
-	return &StepResult{
-		Command:    command,
-		Output:     output,
-		Error:      err,
-		StartTime:  startTime,
-		FinishTime: time.Now(),
 	}
 }
 
@@ -297,31 +252,6 @@ func (d *DockerExecutor) executeCommandInContainer(ctx context.Context, command 
 	return stdout.String(), nil
 }
 
-// executeStepStreaming 执行步骤并实时流式输出
-func (d *DockerExecutor) executeStepStreaming(ctx context.Context, step pipelinex.Step, resultChan chan<- any) {
-	startTime := time.Now()
-	var execErr error
-
-	// 实时执行命令
-	err := d.executeCommandInContainerStreaming(ctx, step.Run, func(data []byte) {
-		resultChan <- data
-	})
-
-	if err != nil {
-		execErr = err
-	}
-
-	// 发送最终结果
-	resultChan <- &StepResult{
-		StepName:   step.Name,
-		Command:    step.Run,
-		Output:     "",
-		Error:      execErr,
-		StartTime:  startTime,
-		FinishTime: time.Now(),
-	}
-}
-
 // executeCommandStreaming 执行命令并实时流式输出
 func (d *DockerExecutor) executeCommandStreaming(ctx context.Context, command string, resultChan chan<- any) {
 	startTime := time.Now()
@@ -331,7 +261,7 @@ func (d *DockerExecutor) executeCommandStreaming(ctx context.Context, command st
 	})
 
 	// 发送最终结果
-	resultChan <- &StepResult{
+	resultChan <- &executor.StepResult{
 		Command:    command,
 		Output:     "",
 		Error:      err,
@@ -743,15 +673,5 @@ func (d *DockerExecutor) GetContainerID() string {
 	return d.containerID
 }
 
-// StepResult 步骤执行结果
-type StepResult struct {
-	StepName   string
-	Command    string
-	Output     string
-	Error      error
-	StartTime  time.Time
-	FinishTime time.Time
-}
-
 // 确保DockerExecutor实现了Executor接口
-var _ pipelinex.Executor = (*DockerExecutor)(nil)
+var _ executor.Executor = (*DockerExecutor)(nil)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 )
 
 // LocalAdapter 本地适配器实现
@@ -35,7 +35,7 @@ func (a *LocalAdapter) Config(ctx context.Context, config map[string]any) error 
 }
 
 // 确保LocalAdapter实现了Adapter接口
-var _ pipelinex.Adapter = (*LocalAdapter)(nil)
+var _ executor.Adapter = (*LocalAdapter)(nil)
 
 // parseTimeout 解析超时时间配置
 func parseTimeout(timeout any) (time.Duration, error) {

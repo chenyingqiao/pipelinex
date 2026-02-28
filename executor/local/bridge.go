@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 )
 
 // LocalBridge 本地桥接器实现
@@ -18,7 +18,7 @@ func NewLocalBridge() *LocalBridge {
 // Conn 连接到本地环境并创建执行器
 // adapter: 适配器，包含本地执行配置
 // 返回: 本地执行器实例
-func (b *LocalBridge) Conn(ctx context.Context, adapter pipelinex.Adapter) (pipelinex.Executor, error) {
+func (b *LocalBridge) Conn(ctx context.Context, adapter executor.Adapter) (executor.Executor, error) {
 	// 创建新的本地执行器
 	executor := NewLocalExecutor()
 
@@ -39,7 +39,7 @@ func (b *LocalBridge) Conn(ctx context.Context, adapter pipelinex.Adapter) (pipe
 }
 
 // 确保LocalBridge实现了Bridge接口
-var _ pipelinex.Bridge = (*LocalBridge)(nil)
+var _ executor.Bridge = (*LocalBridge)(nil)
 
 // applyConfigToExecutor 将配置应用到执行器
 func applyConfigToExecutor(config map[string]any, executor *LocalExecutor) error {

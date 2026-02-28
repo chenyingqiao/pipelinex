@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/thoas/go-funk"
@@ -271,21 +270,24 @@ func (dga *DGAGraph) HasCycle() bool {
 }
 
 type PipelineImpl struct {
-	id             string
-	graph          Graph
-	status         string
-	metadata       Metadata
-	metadataStore  MetadataStore
-	listening      ListeningFn
-	listener       Listener
-	doneChan       <-chan struct{}
-	cancelFunc     context.CancelFunc
-	mu             sync.RWMutex
+	id               string
+	graph            Graph
+	status           string
+	metadata         Metadata
+	metadataStore    MetadataStore
+	listening        ListeningFn
+	listener         Listener
+	doneChan         <-chan struct{}
+	cancelFunc       context.CancelFunc
+	mu               sync.RWMutex
+	executorProvider ExecutorProvider
+	executors        map[string]Executor // 缓存已创建的executor
 }
 
 func NewPipeline(ctx context.Context) Pipeline {
 	return &PipelineImpl{
-		id: uuid.NewString(),
+		id:        uuid.NewString(),
+		executors: make(map[string]Executor),
 	}
 }
 
@@ -373,6 +375,8 @@ func (p *PipelineImpl) Run(ctx context.Context) error {
 		p.mu.Lock()
 		p.cancelFunc = nil
 		p.mu.Unlock()
+		// 清理所有executor
+		p.cleanupExecutors(ctx)
 	}()
 
 	// 通知流水线开始
@@ -408,17 +412,27 @@ func (p *PipelineImpl) Run(ctx context.Context) error {
 
 		// 通知节点开始
 		p.notifyEvent(PipelineNodeStart)
-		fmt.Println(node.Id())
+		fmt.Printf("Executing node: %s\n", node.Id())
 
-		// 模拟工作执行，检查context取消
-		for i := 0; i < 10; i++ {
-			select {
-			case <-ctx.Done():
-				fmt.Printf("Pipeline cancelled for node %s\n", node.Id())
-				return ctx.Err()
-			case <-time.After(100 * time.Millisecond):
-				// 继续执行
-			}
+		// 获取节点的executor配置
+		executorName := node.GetExecutor()
+		if executorName == "" {
+			fmt.Printf("Node %s has no executor configured, skipping\n", node.Id())
+			p.notifyEvent(PipelineNodeFinish)
+			return nil
+		}
+
+		// 获取或创建executor
+		executor, err := p.getOrCreateExecutor(ctx, executorName)
+		if err != nil {
+			fmt.Printf("Failed to get executor for node %s: %v\n", node.Id(), err)
+			return fmt.Errorf("failed to get executor for node %s: %w", node.Id(), err)
+		}
+
+		// 执行节点
+		if err := p.executeNode(ctx, node, executor); err != nil {
+			fmt.Printf("Node %s execution failed: %v\n", node.Id(), err)
+			return err
 		}
 
 		// 通知节点完成
@@ -427,8 +441,73 @@ func (p *PipelineImpl) Run(ctx context.Context) error {
 	})
 
 	// 通知流水线完成
+	if err != nil {
+		p.status = StatusFailed
+	} else {
+		p.status = StatusSuccess
+	}
 	p.notifyEvent(PipelineFinish)
 	return err
+}
+
+// executeNode 执行单个节点
+func (p *PipelineImpl) executeNode(ctx context.Context, node Node, executor Executor) error {
+	steps := node.GetSteps()
+	if len(steps) == 0 {
+		fmt.Printf("Node %s has no steps to execute\n", node.Id())
+		return nil
+	}
+
+	// 创建命令和结果通道
+	commandChan := make(chan any, len(steps))
+	resultChan := make(chan any, len(steps)*10) // 预留足够空间用于输出
+
+	// 启动executor的Transfer goroutine
+	go executor.Transfer(ctx, resultChan, commandChan)
+
+	// 发送所有步骤（转换为命令字符串）
+	go func() {
+		defer close(commandChan)
+		for _, step := range steps {
+			select {
+			case <-ctx.Done():
+				return
+			case commandChan <- step.Run:
+			}
+		}
+	}()
+
+	// 等待所有结果
+	var lastErr error
+	resultCount := 0
+	expectedResults := len(steps) // 每个步骤至少返回一个结果
+
+	for resultCount < expectedResults {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case result, ok := <-resultChan:
+			if !ok {
+				return lastErr
+			}
+
+			switch v := result.(type) {
+			case error:
+				lastErr = v
+				resultCount++
+			case *StepResult:
+				if v.Error != nil {
+					lastErr = v.Error
+				}
+				resultCount++
+			case []byte:
+				// 实时输出，打印到控制台
+				fmt.Print(string(v))
+			}
+		}
+	}
+
+	return lastErr
 }
 
 // 这个主要是在运行过程中节点状态或者流水线状态变化，就会触发这个函数
@@ -494,4 +573,50 @@ func (p *PipelineImpl) notifyCurrentStatus(listener Listener) {
 	// 此方法可用于通知详细的状态变化
 	// 目前，它仅用当前流水线调用监听器
 	listener.Handle(p, EventPipelineStatusUpdate)
+}
+
+// SetExecutorProvider 设置Executor提供者
+func (p *PipelineImpl) SetExecutorProvider(provider ExecutorProvider) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.executorProvider = provider
+	p.executors = make(map[string]Executor)
+}
+
+// getOrCreateExecutor 获取或创建Executor
+func (p *PipelineImpl) getOrCreateExecutor(ctx context.Context, name string) (Executor, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// 检查缓存
+	if executor, ok := p.executors[name]; ok {
+		return executor, nil
+	}
+
+	// 使用provider创建executor
+	if p.executorProvider == nil {
+		return nil, fmt.Errorf("executor provider not set")
+	}
+
+	executor, err := p.executorProvider.GetExecutor(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+
+	// 缓存executor
+	p.executors[name] = executor
+	return executor, nil
+}
+
+// cleanupExecutors 清理所有executor
+func (p *PipelineImpl) cleanupExecutors(ctx context.Context) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	for name, executor := range p.executors {
+		if err := executor.Destruction(ctx); err != nil {
+			fmt.Printf("failed to destroy executor %s: %v\n", name, err)
+		}
+	}
+	p.executors = make(map[string]Executor)
 }

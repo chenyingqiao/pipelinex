@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 )
 
 // DockerBridge Docker桥接器实现
@@ -18,7 +18,7 @@ func NewDockerBridge() *DockerBridge {
 // Conn 连接到Docker环境并创建执行器
 // adapter: 适配器，包含Docker配置
 // 返回: Docker执行器实例
-func (b *DockerBridge) Conn(ctx context.Context, adapter pipelinex.Adapter) (pipelinex.Executor, error) {
+func (b *DockerBridge) Conn(ctx context.Context, adapter executor.Adapter) (executor.Executor, error) {
 	// 创建新的Docker执行器
 	executor, err := NewDockerExecutor()
 	if err != nil {
@@ -42,7 +42,7 @@ func (b *DockerBridge) Conn(ctx context.Context, adapter pipelinex.Adapter) (pip
 }
 
 // 确保DockerBridge实现了Bridge接口
-var _ pipelinex.Bridge = (*DockerBridge)(nil)
+var _ executor.Bridge = (*DockerBridge)(nil)
 
 // applyConfigToExecutor 将配置应用到执行器
 func applyConfigToExecutor(config map[string]any, executor *DockerExecutor) error {

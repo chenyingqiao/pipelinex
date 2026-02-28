@@ -1,23 +1,17 @@
 package pipelinex
 
-import "context"
+import (
+	"github.com/chenyingqiao/pipelinex/executor"
+)
 
 // Executor 执行器
-type Executor interface {
-	// Prepare 准备环境
-	Prepare(ctx context.Context) error
-	// Destruction 销毁环境
-	Destruction(ctx context.Context) error
-	// Transfer 从 commandChan 接收命令执行，并将结果发送到 resultChan
-	Transfer(ctx context.Context, resultChan chan<- any, commandChan <-chan any)
-}
+type Executor = executor.Executor
 
-type Adapter interface {
-	// Config 适配器配置
-	Config(ctx context.Context, config map[string]any) error
-}
+// Adapter 适配器接口
+type Adapter = executor.Adapter
 
-type Bridge interface {
-	// Conn 连接到环境中
-	Conn(ctx context.Context, adapter Adapter) (Executor, error)
-}
+// Bridge 桥接器接口
+type Bridge = executor.Bridge
+
+// StepResult 步骤执行结果
+type StepResult = executor.StepResult

@@ -11,4 +11,12 @@ type Node interface {
 	Get(key string) string
 	// Set 设置节点属性数据
 	Set(key string, value any)
+	// GetExecutor 获取节点执行器名称
+	GetExecutor() string
+	// GetSteps 获取节点执行步骤
+	GetSteps() []Step
+	// GetImage 获取节点镜像
+	GetImage() string
+	// GetConfig 获取节点配置
+	GetConfig() map[string]any
 }

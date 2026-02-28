@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chenyingqiao/pipelinex"
+	"github.com/chenyingqiao/pipelinex/executor"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
@@ -43,7 +43,7 @@ func (a *KubernetesAdapter) Config(ctx context.Context, config map[string]any) e
 }
 
 // 确保KubernetesAdapter实现了Adapter接口
-var _ pipelinex.Adapter = (*KubernetesAdapter)(nil)
+var _ executor.Adapter = (*KubernetesAdapter)(nil)
 
 // parseVolumeMount 解析卷挂载配置
 func parseVolumeMount(volume map[string]any) (name, mountPath string, err error) {
