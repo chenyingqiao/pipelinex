@@ -93,19 +93,43 @@ Nodes:
         run: git checkout ${Param.branch}
       - name: merge
         run: git merge origin/release
-  
+
   Build:
     executor: docker     # 引用全局 Executors.docker
     image: golang:1.21-alpine
+    extract:             # 输出提取配置（使用 code-block 模式识别 JSON/YAML 代码块）
+      type: codec-block
     steps:
       - name: build
-        run: go build -o app .
+        run: |
+          go build -o app .
+          echo '```pipelinex-json'
+          echo '{"buildId": "'${Param.buildId}'", "binary": "app", "status": "success"}'
+          echo '```'
       - name: image
         run: docker build -t app:${Param.buildId} .
-  
+
+  Test:
+    executor: docker     # 引用全局 Executors.docker
+    image: golang:1.21-alpine
+    extract:             # 输出提取配置（使用 regex 模式提取测试覆盖率）
+      type: regex
+      patterns:
+        coverage: "coverage: (\\d+\\.\\d+)%"  # 提取测试覆盖率百分比
+        testsPassed: "(\\d+) tests passed"      # 提取通过的测试数量
+    steps:
+      - name: test
+        run: |
+          go test -cover ./... | tee test-output.log
+          echo "Tests completed. Check test-output.log for details"
+
   Deploy:
     executor: k8s        # 引用全局 Executors.k8s
     image: bitnami/kubectl:latest
     steps:
       - name: apply
         run: kubectl apply -f ./k8s/
+      - name: verify
+        run: |
+          kubectl rollout status deployment/app -n ${Param.namespace}
+          echo "Deployment completed successfully"

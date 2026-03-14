@@ -15,6 +15,7 @@ A flexible and extensible CI/CD pipeline execution library for Go, supporting mu
 - **Template Engine**: Dynamic configuration rendering with Pongo2 templates
 - **Metadata Management**: Process-safe metadata storage and retrieval
 - **Log Streaming**: Real-time log output with customizable log pushing
+- **Output Extraction**: Extract structured data from command output using codec-block or regex patterns
 
 ## Installation
 
@@ -79,6 +80,53 @@ Nodes:
     fmt.Println("Pipeline completed successfully!")
 }
 ```
+
+## Output Extraction
+
+PipelineX supports extracting structured data from command output and saving it to pipeline metadata for use in subsequent nodes.
+
+### Codec-Block Extraction
+
+Automatically recognizes and parses `pipelinex-json` and `pipelinex-yaml` code blocks:
+
+```yaml
+Nodes:
+  Build:
+    executor: local
+    extract:
+      type: codec-block
+      maxOutputSize: 1048576  # Optional, default 1MB
+    steps:
+      - name: build
+        run: |
+          echo "Building..."
+          echo '```pipelinex-json'
+          echo '{"buildId": "12345", "version": "1.0.0"}'
+          echo '```'
+```
+
+This extracts `buildId` and `version` from the output and makes them available as `${Metadata.Build.buildId}` and `${Metadata.Build.version}`.
+
+### Regex Extraction
+
+Extract data using regular expressions:
+
+```yaml
+Nodes:
+  Test:
+    executor: local
+    extract:
+      type: regex
+      patterns:
+        coverage: "coverage: (\\d+\\.\\d+)%"
+        tests: "(\\d+) tests? passed"
+      maxOutputSize: 524288
+    steps:
+      - name: test
+        run: go test -cover
+```
+
+This extracts test coverage and count from the command output.
 
 ## Configuration
 

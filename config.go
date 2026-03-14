@@ -72,4 +72,20 @@ type NodeConfig struct {
 	Image    string                 `yaml:"image"`
 	Steps    []Step                 `yaml:"steps"`
 	Config   map[string]interface{} `yaml:"Config"`
+	Extract  *ExtractConfig         `yaml:"extract,omitempty"` // 提取配置
+}
+
+// ExtractConfig 输出提取配置
+type ExtractConfig struct {
+	// 提取类型：codec-block (默认) 或 regex
+	Type string `yaml:"type"`
+
+	// 正则表达式模式（当 type=regex 时使用）
+	// key: 提取结果的键名
+	// value: 正则表达式，必须包含一个捕获组
+	Patterns map[string]string `yaml:"patterns,omitempty"`
+
+	// 输出大小限制（字节），超过限制的输出将被截断
+	// 0 表示无限制，默认为 1MB
+	MaxOutputSize int `yaml:"maxOutputSize,omitempty"`
 }

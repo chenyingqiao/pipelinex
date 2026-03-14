@@ -1,0 +1,65 @@
+Version: "1.0"
+Name: local-extraction-example
+
+Metadate:
+  type: in-config
+  data: {}
+
+Executors:
+  local:
+    type: local
+    config:
+      shell: bash
+
+Graph: |
+  stateDiagram-v2
+    direction LR
+    [*] --> ExtractCodeBlock
+    [*] --> ExtractRegex
+    ExtractCodeBlock --> [*]
+    ExtractRegex --> [*]
+
+Nodes:
+  ExtractCodeBlock:
+    executor: local
+    extract:
+      type: codec-block
+      maxOutputSize: 1048576  # 1MB
+    steps:
+      - name: build-and-extract
+        run: |
+          echo "Starting build process..."
+          echo "Compiling source files..."
+          echo '```pipelinex-json'
+          echo '{"buildId": "'$(date +%s)'", "version": "1.0.0", "compiler": "gcc", "status": "success", "warnings": 3}'
+          echo '```'
+          echo "Build artifacts created: bin/app"
+          echo '```pipelinex-yaml'
+          echo 'artifacts:'
+          echo '  - name: application'
+          echo '    path: bin/app'
+          echo '    size: 2048'
+          echo '  - name: config'
+          echo '    path: config/app.yaml'
+          echo '    size: 128'
+          echo '```'
+
+  ExtractRegex:
+    executor: local
+    extract:
+      type: regex
+      patterns:
+        testCount: "(\d+) tests passed"
+        coverage: "coverage: ([\d\.]+)%"
+        duration: "Completed in ([\d\.]+s)"
+      maxOutputSize: 524288  # 512KB
+    steps:
+      - name: run-tests
+        run: |
+          echo "Running unit tests..."
+          echo "...................."
+          echo "42 tests passed"
+          echo "2 tests failed"
+          echo "coverage: 87.5%"
+          echo "Completed in 2.45s"
+          echo "Test execution finished"

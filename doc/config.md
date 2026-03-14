@@ -106,8 +106,52 @@
 | `Nodes.{name}.executor` | string | 引用 `Executors` 中的执行器名称 |
 | `Nodes.{name}.image` | string | Docker/K8s 执行时使用的容器镜像 |
 | `Nodes.{name}.steps` | []object | 执行步骤列表 |
+| `Nodes.{name}.extract` | object | **输出提取配置**（可选，用于从命令输出中提取结构化数据） |
 
-### 步骤字段
+### 7.1 输出提取配置
+
+用于从命令输出中提取结构化数据并保存到 metadata，供后续节点使用。
+
+| 字段 | 类型 | 默认值 | 说明 |
+|------|------|--------|------|
+| `extract.type` | string | `"codec-block"` | 提取类型：`codec-block` 或 `regex` |
+| `extract.patterns` | map | - | 当 type=`regex` 时使用，key-value 形式的正则表达式 |
+| `extract.maxOutputSize` | int | `1048576` | 输出大小限制（字节），超过将被截断 |
+
+#### 7.1.1 codec-block 模式
+
+自动识别 `pipelinex-json` 和 `pipelinex-yaml` 代码块并解析。
+
+**示例：**
+```yaml
+extract:
+  type: codec-block
+  maxOutputSize: 1048576  # 1MB
+```
+
+在命令输出中嵌入代码块：
+```bash
+echo '```pipelinex-json'
+echo '{"version": "1.0.0", "status": "success"}'
+echo '```'
+```
+
+#### 7.1.2 regex 模式
+
+使用正则表达式提取内容，一个表达式对应一个 key。
+
+**示例：**
+```yaml
+extract:
+  type: regex
+  patterns:
+    coverage: "coverage: (\\d+\\.\\d+)%"      # 提取测试覆盖率
+    testsPassed: "(\\d+) tests passed"          # 提取通过的测试数
+    buildStatus: "Build (\\w+)"                  # 提取构建状态
+  maxOutputSize: 524288  # 512KB
+```
+
+### 7.2 步骤字段
 
 | 字段 | 类型 | 功能 |
 |------|------|------|

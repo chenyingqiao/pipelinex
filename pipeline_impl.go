@@ -3,6 +3,7 @@ package pipelinex
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 
 	"github.com/google/uuid"
@@ -482,6 +483,9 @@ func (p *PipelineImpl) executeNode(ctx context.Context, node Node, executor Exec
 	resultCount := 0
 	expectedResults := len(steps) // 每个步骤至少返回一个结果
 
+	// 收集所有输出，用于提取
+	var allOutput strings.Builder
+
 	for resultCount < expectedResults {
 		select {
 		case <-ctx.Done():
@@ -500,9 +504,15 @@ func (p *PipelineImpl) executeNode(ctx context.Context, node Node, executor Exec
 					lastErr = v.Error
 				}
 				resultCount++
+
+				// 执行输出提取
+				if err := p.extractOutput(ctx, node, v, allOutput.String()); err != nil {
+					fmt.Printf("Failed to extract output from node %s: %v\n", node.Id(), err)
+				}
 			case []byte:
 				// 实时输出，打印到控制台
 				fmt.Print(string(v))
+				allOutput.Write(v) // 收集输出
 			}
 		}
 	}
@@ -619,4 +629,108 @@ func (p *PipelineImpl) cleanupExecutors(ctx context.Context) {
 		}
 	}
 	p.executors = make(map[string]Executor)
+}
+
+// extractOutput 从节点输出中提取数据并保存到metadata
+func (p *PipelineImpl) extractOutput(ctx context.Context, node Node, stepResult *StepResult, fullOutput string) error {
+	// 获取节点配置
+	nodeConfig := node.GetConfig()
+	if nodeConfig == nil {
+		return nil
+	}
+
+	// 检查是否有提取配置
+	extractConfig, hasExtract := nodeConfig["extract"]
+	if !hasExtract || extractConfig == nil {
+		return nil
+	}
+
+	// 创建提取器
+	extractor, err := p.createExtractor(extractConfig)
+	if err != nil {
+		return fmt.Errorf("failed to create extractor: %w", err)
+	}
+
+	// 执行提取
+	extracted, err := extractor.Extract(fullOutput)
+	if err != nil {
+		return fmt.Errorf("failed to extract data from node %s: %w", node.Id(), err)
+	}
+
+	// 保存到 metadata
+	if len(extracted) > 0 {
+		metadata := p.Metadata()
+
+		// 保存到内存 metadata
+		for key, value := range extracted {
+			metadataKey := fmt.Sprintf("%s.%s", node.Id(), key)
+			metadata[metadataKey] = value
+			fmt.Printf("Extracted data: %s = %v\n", metadataKey, value)
+		}
+
+		// 如果有 metadata store，同步保存
+		if p.metadataStore != nil {
+			for key, value := range extracted {
+				metadataKey := fmt.Sprintf("%s.%s", node.Id(), key)
+				valueStr := fmt.Sprintf("%v", value)
+				if err := p.metadataStore.Set(ctx, metadataKey, valueStr); err != nil {
+					fmt.Printf("Warning: Failed to save extracted data to store: %v\n", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// createExtractor 根据配置创建提取器
+func (p *PipelineImpl) createExtractor(extractConfig interface{}) (OutputExtractor, error) {
+	if extractConfig == nil {
+		return nil, nil
+	}
+
+	configMap, ok := extractConfig.(map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid extract config format")
+	}
+
+	// 获取提取类型
+	extractType := "codec-block" // 默认类型
+	if typeVal, ok := configMap["type"]; ok {
+		if typeStr, ok := typeVal.(string); ok {
+			extractType = typeStr
+		}
+	}
+
+	// 获取输出大小限制
+	maxOutputSize := 1024 * 1024 // 默认 1MB
+	if sizeVal, ok := configMap["maxOutputSize"]; ok {
+		if size, ok := sizeVal.(int); ok {
+			maxOutputSize = size
+		}
+	}
+
+	switch extractType {
+	case "codec-block":
+		return NewCodecBlockExtractor(maxOutputSize), nil
+
+	case "regex":
+		patterns := make(map[string]string)
+		if patternsVal, ok := configMap["patterns"]; ok {
+			if patternsMap, ok := patternsVal.(map[string]interface{}); ok {
+				for k, v := range patternsMap {
+					if patternStr, ok := v.(string); ok {
+						patterns[k] = patternStr
+					}
+				}
+			}
+		}
+		if len(patterns) == 0 {
+			return nil, fmt.Errorf("regex extractor requires patterns")
+		}
+		return NewRegexExtractor(patterns, maxOutputSize)
+
+	default:
+		return nil, fmt.Errorf("unsupported extract type: %s", extractType)
+	}
 }
