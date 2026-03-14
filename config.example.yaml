@@ -3,6 +3,7 @@ Name: my-pipeline
 
 Metadate:
   type: in-config
+  description: "用于存储构建过程中的元数据，如构建ID、版本号、测试覆盖率等，供后续节点使用"
   data:
     key1: value1
     key2: value2
@@ -10,126 +11,159 @@ Metadate:
 AI:
   # 核心：一句话描述意图，用于理解上下文
   intent: "Go 微服务构建并部署到 K8s，包含测试"
-  
+
   # 核心：关键约束，用于验证和修复
   constraints:
     - "多阶段构建"
     - "非 root 用户运行"
     - "必须通过单元测试"
-  
-  # 核心：模板标识，用于推荐和复用，作为一个标准参照
+
+  # 核心：模板标识，用于推荐和复用
   template: "go-microservice"
-  
+
   # 核心：生成信息，用于追踪
   generatedAt: "2024-01-15T10:30:00Z"
   version: 1
 
 Param:
+  # 构建ID，用于镜像标签和版本追踪
   buildId: "2323"
+
+  # K8s 命名空间，目标部署环境
   namespace: "production"
+
+  # 镜像仓库地址，用于推送和拉取镜像
   registry: "myregistry.com"
+
+  # Git 分支，代码来源
+  branch: "main"
 
 # 全局执行器定义
 Executors:
   local:
     type: local
+    description: "本地执行器，用于执行Git操作等简单命令"
     config:
       shell: bash
       workdir: /tmp/pipeline
 
   docker:
     type: docker
+    description: "Docker执行器，用于构建镜像和运行测试，支持DinD"
     config:
-      registry: ${Param.registry}        # 镜像仓库地址
-      network: host                       # 网络模式 (bridge/host/none/自定义网络)
-      workdir: /app                       # 容器内工作目录
-      tty: true                           # 启用 TTY 模式（支持颜色输出和交互式程序）
-      ttyWidth: 120                       # TTY 终端宽度（默认 80）
-      ttyHeight: 40                       # TTY 终端高度（默认 24）
-      volumes:                            # 卷挂载列表
+      registry: ${Param.registry}
+      network: host
+      workdir: /app
+      tty: true
+      volumes:
         - /var/run/docker.sock:/var/run/docker.sock
         - ${PWD}:/workspace
-      env:                                # 环境变量
+      env:
         GO_VERSION: "1.21"
         CGO_ENABLED: "0"
 
   k8s:
     type: k8s
+    description: "Kubernetes执行器，用于部署应用到K8s集群"
     config:
-      namespace: default
+      namespace: ${Param.namespace}
       resources:
         cpu: "1000m"
         memory: "2Gi"
 
 # 日志推送配置
 Logging:
-  endpoint: http://log-center/api/v1/logs    # 日志后端接口
+  description: "推送执行日志到日志中心，用于审计和故障排查"
+  endpoint: http://log-center/api/v1/logs
   headers:
-    Authorization: Bearer xxxxxxxxx  # 可选认证
+    Authorization: Bearer xxxxxxxxx
   timeout: 5s
   retry: 3
 
 # 执行图
 Graph: |
+  %% Go微服务CI/CD流水线，从代码合并到K8s部署的完整流程
+  %% 流程说明：
+  %% 1. Merge节点：从Git拉取代码并合并
+  %% 2. Build节点：编译Go应用并构建Docker镜像
+  %% 3. Test节点：运行单元测试，要求覆盖率>80%
+  %% 4. Deploy节点：部署到K8s集群并验证
   stateDiagram-v2
     direction LR
     [*] --> Merge
     Merge --> Build
-    Build --> Deploy
+    Build --> Test
+    Test --> Deploy
     Deploy --> [*]
 
 # 运行时状态
 Status:
   Merge: Finished
   Build: Running
+  Test: Pending
   Deploy: Pending
 
 # 节点配置
 Nodes:
   Merge:
-    executor: local      # 引用全局 Executors.local
+    name: "代码合并"
+    description: "从Git仓库拉取代码并合并到主分支，确保代码最新"
+    executor: local
     steps:
       - name: checkout
+        description: "检出指定分支"
         run: git checkout ${Param.branch}
       - name: merge
+        description: "合并release分支"
         run: git merge origin/release
 
   Build:
-    executor: docker     # 引用全局 Executors.docker
+    name: "构建应用"
+    description: "编译Go应用并构建Docker镜像，使用多阶段构建优化镜像大小"
+    executor: docker
     image: golang:1.21-alpine
-    extract:             # 输出提取配置（使用 code-block 模式识别 JSON/YAML 代码块）
+    extract:
       type: codec-block
     steps:
       - name: build
+        description: "编译Go二进制文件，禁用CGO确保可移植性"
         run: |
           go build -o app .
           echo '```pipelinex-json'
           echo '{"buildId": "'${Param.buildId}'", "binary": "app", "status": "success"}'
           echo '```'
       - name: image
-        run: docker build -t app:${Param.buildId} .
+        description: "构建Docker镜像并打标签"
+        run: docker build -t ${Param.registry}/app:${Param.buildId} .
 
   Test:
-    executor: docker     # 引用全局 Executors.docker
+    name: "单元测试"
+    description: "运行Go单元测试并收集覆盖率数据，必须达到80%覆盖率"
+    executor: docker
     image: golang:1.21-alpine
-    extract:             # 输出提取配置（使用 regex 模式提取测试覆盖率）
+    extract:
       type: regex
       patterns:
-        coverage: "coverage: (\\d+\\.\\d+)%"  # 提取测试覆盖率百分比
-        testsPassed: "(\\d+) tests passed"      # 提取通过的测试数量
+        coverage: "coverage: (\\d+\\.\\d+)%"
+        testsPassed: "(\\d+) tests passed"
     steps:
       - name: test
+        description: "执行测试并输出覆盖率"
         run: |
           go test -cover ./... | tee test-output.log
           echo "Tests completed. Check test-output.log for details"
 
   Deploy:
-    executor: k8s        # 引用全局 Executors.k8s
+    name: "部署到K8s"
+    description: "将应用部署到Kubernetes集群，并验证部署状态"
+    executor: k8s
     image: bitnami/kubectl:latest
     steps:
       - name: apply
+        description: "应用K8s资源配置"
         run: kubectl apply -f ./k8s/
       - name: verify
+        description: "等待滚动更新完成并验证"
         run: |
           kubectl rollout status deployment/app -n ${Param.namespace}
           echo "Deployment completed successfully"

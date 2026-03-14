@@ -10,6 +10,9 @@
 |------|------|------|
 | `Version` | string | 配置文件格式版本，用于引擎兼容性判断 |
 | `Name` | string | 流水线唯一标识，用于日志、监控、管理 |
+| `Metadate.description` | string | 可选，描述 metadata 的用途和业务含义 |
+| `Metadate.type` | string | Metadata 存储类型：in-config、redis、http |
+| `Metadate.data` | map | 初始元数据键值对 |
 
 ---
 
@@ -41,6 +44,7 @@
 |------|------|------|
 | `Executors` | map | 全局执行器注册表，供 Nodes 引用 |
 | `Executors.{name}.type` | string | 执行器类型：`local` \| `docker` \| `k8s` |
+| `Executors.{name}.description` | string | 可选，执行器使用场景和业务含义说明 |
 | `Executors.{name}.config` | object | 执行器全局配置，被 Nodes 继承 |
 
 ### 4.1 local 执行器
@@ -72,6 +76,7 @@
 
 | 字段 | 类型 | 功能 |
 |------|------|------|
+| `Logging.description` | string | 可选，日志配置用途说明 |
 | `Logging.endpoint` | string | 日志接收服务 HTTP 接口地址 |
 | `Logging.headers` | map | 请求头（用于认证、租户标识等） |
 | `Logging.timeout` | duration | 单次推送超时时间 |
@@ -103,6 +108,8 @@
 | 字段 | 类型 | 功能 |
 |------|------|------|
 | `Nodes.{name}` | object | 单个节点完整配置 |
+| `Nodes.{name}.name` | string | 可选，节点显示名称，用于日志和监控展示 |
+| `Nodes.{name}.description` | string | 可选，节点业务功能描述，帮助理解节点职责 |
 | `Nodes.{name}.executor` | string | 引用 `Executors` 中的执行器名称 |
 | `Nodes.{name}.image` | string | Docker/K8s 执行时使用的容器镜像 |
 | `Nodes.{name}.steps` | []object | 执行步骤列表 |
@@ -156,6 +163,7 @@ extract:
 | 字段 | 类型 | 功能 |
 |------|------|------|
 | `steps[].name` | string | 步骤标识，用于日志和状态展示 |
+| `steps[].description` | string | 可选，步骤具体职责描述 |
 | `steps[].run` | string | 实际执行的 shell 命令 |
 
 ---

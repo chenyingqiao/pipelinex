@@ -16,8 +16,9 @@ type PipelineConfig struct {
 
 // MetadataConfig 元数据配置结构
 type MetadataConfig struct {
-	Type string                 `yaml:"type"`
-	Data map[string]interface{} `yaml:"data"`
+	Type        string                 `yaml:"type"`
+	Description string                 `yaml:"description,omitempty"` // 描述 metadata 的用途
+	Data        map[string]interface{} `yaml:"data"`
 }
 
 // HTTPMetadataConfig HTTP元数据配置
@@ -48,31 +49,36 @@ type AIConfig struct {
 
 // ExecutorConfig 执行器配置结构
 type ExecutorConfig struct {
-	Type   string                 `yaml:"type"`
-	Config map[string]interface{} `yaml:"config"`
+	Type        string                 `yaml:"type"`
+	Description string                 `yaml:"description,omitempty"` // 执行器使用场景描述
+	Config      map[string]interface{} `yaml:"config"`
 }
 
 // LoggingConfig 日志配置结构
 type LoggingConfig struct {
-	Endpoint string            `yaml:"endpoint"`
-	Headers  map[string]string `yaml:"headers"`
-	Timeout  string            `yaml:"timeout"`
-	Retry    int               `yaml:"retry"`
+	Description string            `yaml:"description,omitempty"` // 日志配置用途描述
+	Endpoint    string            `yaml:"endpoint"`
+	Headers     map[string]string `yaml:"headers"`
+	Timeout     string            `yaml:"timeout"`
+	Retry       int               `yaml:"retry"`
 }
 
 // Step 步骤配置结构
 type Step struct {
-	Name string `yaml:"name"`
-	Run  string `yaml:"run"`
+	Name        string `yaml:"name"`
+	Description string `yaml:"description,omitempty"` // 步骤具体职责描述
+	Run         string `yaml:"run"`
 }
 
 // NodeConfig 节点配置结构
 type NodeConfig struct {
-	Executor string                 `yaml:"executor"`
-	Image    string                 `yaml:"image"`
-	Steps    []Step                 `yaml:"steps"`
-	Config   map[string]interface{} `yaml:"Config"`
-	Extract  *ExtractConfig         `yaml:"extract,omitempty"` // 提取配置
+	Name        string                 `yaml:"name,omitempty"`        // 节点显示名称
+	Description string                 `yaml:"description,omitempty"` // 节点业务功能描述
+	Executor    string                 `yaml:"executor"`
+	Image       string                 `yaml:"image"`
+	Steps       []Step                 `yaml:"steps"`
+	Config      map[string]interface{} `yaml:"Config"`
+	Extract     *ExtractConfig         `yaml:"extract,omitempty"` // 提取配置
 }
 
 // ExtractConfig 输出提取配置
