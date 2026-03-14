@@ -22,3 +22,4 @@ go.work
 vendor
 _debug_bin*
 .gitnexus
+.claude
