@@ -1,6 +1,67 @@
 # 更新日志
 
-## [Unreleased] - 2026-02-26
+## [Unreleased] - 2026-03-14
+
+本版本引入了输出提取功能，完善了流水线执行逻辑，并更新了文档。
+
+### 新增功能
+
+#### 1. 输出提取功能（Output Extraction）
+- 新增 `extractor.go` - 支持从命令输出中提取结构化数据
+- `CodecBlockExtractor` - 自动识别 ```pipelinex-json 和 ```pipelinex-yaml 代码块
+- `RegexExtractor` - 支持通过正则表达式提取输出信息
+- 提取的数据可保存到 Pipeline 元数据中供后续节点使用
+
+#### 2. 流水线执行逻辑完善
+- `pipeline_impl.go` - 实现完整的 Pipeline 执行逻辑
+- 支持多个入度为0的起始节点并行执行
+- 完善执行状态管理和事件触发机制
+- 优化并发控制和资源管理
+
+### 文档更新
+
+- 大幅更新 `README.md` - 添加输出提取功能说明和完整示例
+- 新增 `README_ZH.md` - 完整的中文文档
+- 更新配置示例，添加输出提取配置说明
+- 完善 API 文档和使用示例
+
+### 改进与优化
+
+#### 配置增强
+- 添加描述配置（Description Configuration）
+- 完善执行器配置说明
+- 优化配置文件结构
+
+#### 项目管理
+- 添加 GitNexus 配置，支持代码知识图谱分析
+- 移除 `.claude` 配置文件
+- 更新项目文档和开发指南
+
+### 依赖更新
+
+- 更新项目依赖，优化依赖管理
+
+### 文件变更统计
+
+- 新增文件：11 个（extractor 相关、README_ZH.md、配置更新）
+- 修改文件：52 个（主要执行逻辑、文档、配置）
+- 删除文件：0 个
+- 总行数变化：+2,105 / -595
+
+### 完整提交记录
+
+```
+efebadf feat: 去除.claude
+c7990e7 feat: 添加描述配置
+0e6ad1c feat: 添加从输出提取返回信息的功能
+393eac7 feat: 添加gitnexus的配置
+6a77d38 feat: 更新文档
+29d8dcb feat: 流水线执行器支持local docker k8s 并且pipeline_impl实现了执行逻辑
+```
+
+---
+
+## [2026-02-26] - 2026-02-26
 
 本版本主要实现了 Docker 和 Local 执行器，同时简化了 Kubernetes 执行器的架构。
 
